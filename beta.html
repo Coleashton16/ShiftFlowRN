@@ -270,9 +270,38 @@
                 </button>
             </div>
             <form onsubmit="handleAddRoom(event)" class="space-y-4">
-                <div>
-                    <input type="text" id="room-number-input" required maxlength="12" placeholder="412-A" autocomplete="off" autocorrect="off" autocapitalize="characters"
-                        class="w-full text-2xl font-extrabold text-center tracking-wider px-4 py-4 rounded-2xl bg-slate-50 border-2 border-slate-200 focus:border-teal-500 focus:bg-white outline-none transition">
+                <!-- Digital Room Readout -->
+                <div class="px-4 py-3 rounded-2xl bg-slate-950 text-white border border-slate-800 flex items-center justify-between shadow-inner">
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Room #</span>
+                    <span id="room-keypad-display" class="font-mono-num text-3xl font-extrabold tracking-wider text-teal-400 min-h-[36px] flex items-center">---</span>
+                    <button type="button" onclick="clearRoomKeypad()" aria-label="Clear number" class="squish px-2 py-1 rounded-lg bg-slate-800 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 hover:text-white">
+                        Clear
+                    </button>
+                </div>
+
+                <!-- Optional Bed Suffix Quick Toggle -->
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button type="button" id="bed-opt-none" onclick="setRoomBedSuffix('')" class="squish py-2 rounded-xl border text-xs font-extrabold bg-slate-900 text-white border-slate-900">Single</button>
+                    <button type="button" id="bed-opt-A" onclick="setRoomBedSuffix('-A')" class="squish py-2 rounded-xl border text-xs font-extrabold bg-slate-50 text-slate-600 border-slate-200">Bed -A</button>
+                    <button type="button" id="bed-opt-B" onclick="setRoomBedSuffix('-B')" class="squish py-2 rounded-xl border text-xs font-extrabold bg-slate-50 text-slate-600 border-slate-200">Bed -B</button>
+                </div>
+
+                <!-- Oversized 0-9 Tactile Number Pad -->
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" onclick="pressRoomDigit('1')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">1</button>
+                    <button type="button" onclick="pressRoomDigit('2')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">2</button>
+                    <button type="button" onclick="pressRoomDigit('3')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">3</button>
+                    <button type="button" onclick="pressRoomDigit('4')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">4</button>
+                    <button type="button" onclick="pressRoomDigit('5')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">5</button>
+                    <button type="button" onclick="pressRoomDigit('6')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">6</button>
+                    <button type="button" onclick="pressRoomDigit('7')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">7</button>
+                    <button type="button" onclick="pressRoomDigit('8')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">8</button>
+                    <button type="button" onclick="pressRoomDigit('9')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">9</button>
+                    <button type="button" onclick="pressRoomDigit('-')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-mono-num text-xl font-extrabold shadow-2xs">-</button>
+                    <button type="button" onclick="pressRoomDigit('0')" class="squish h-13 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-mono-num text-xl font-extrabold shadow-2xs">0</button>
+                    <button type="button" onclick="backspaceRoomDigit()" aria-label="Backspace" class="squish h-13 py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center shadow-2xs">
+                        <i class="ph-bold ph-backspace text-xl"></i>
+                    </button>
                 </div>
                 
                 <div>
@@ -284,7 +313,7 @@
 
                 <div class="flex gap-2 pt-1">
                     <button type="button" onclick="closeAddModal()" class="squish flex-1 py-3.5 rounded-2xl font-bold text-sm text-slate-600 bg-slate-100">Cancel</button>
-                    <button type="submit" class="squish flex-1 py-3.5 rounded-2xl font-extrabold text-sm text-white bg-slate-900 shadow-md">Add to Board</button>
+                    <button type="submit" id="add-room-submit-btn" disabled class="squish flex-1 py-3.5 rounded-2xl font-extrabold text-sm text-white bg-slate-900 disabled:opacity-40 shadow-md">Add to Board</button>
                 </div>
             </form>
         </div>
@@ -1886,15 +1915,71 @@ STRICT MEDICAL ACCURACY & SAFETY GUARDRAILS:
         }
 
         /**
-         * 6. ADD & RESET MODALS
+         * 6. ADD & RESET MODALS (0-9 TACTILE KEYPAD)
          */
+        let keypadDigits = '';
+        let keypadBedSuffix = '';
+
+        function updateKeypadDisplay() {
+            const display = document.getElementById('room-keypad-display');
+            const submitBtn = document.getElementById('add-room-submit-btn');
+            const fullRoom = keypadDigits ? `${keypadDigits}${keypadBedSuffix}` : '';
+            if (display) {
+                display.textContent = fullRoom || '---';
+                display.className = fullRoom
+                    ? 'font-mono-num text-3xl font-extrabold tracking-wider text-teal-400 min-h-[36px] flex items-center'
+                    : 'font-mono-num text-3xl font-extrabold tracking-wider text-slate-600 min-h-[36px] flex items-center';
+            }
+            if (submitBtn) {
+                submitBtn.disabled = !keypadDigits;
+            }
+        }
+
+        function pressRoomDigit(char) {
+            if (keypadDigits.length >= 8) return;
+            keypadDigits += char;
+            updateKeypadDisplay();
+            haptic(10);
+        }
+
+        function backspaceRoomDigit() {
+            if (!keypadDigits) return;
+            keypadDigits = keypadDigits.slice(0, -1);
+            updateKeypadDisplay();
+            haptic(10);
+        }
+
+        function clearRoomKeypad() {
+            keypadDigits = '';
+            keypadBedSuffix = '';
+            setRoomBedSuffix('');
+            updateKeypadDisplay();
+            haptic(10);
+        }
+
+        function setRoomBedSuffix(suffix) {
+            keypadBedSuffix = suffix;
+            ['', '-A', '-B'].forEach(opt => {
+                const btnId = opt === '' ? 'bed-opt-none' : `bed-opt-${opt.replace('-', '')}`;
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+                btn.className = opt === suffix
+                    ? 'squish py-2 rounded-xl border text-xs font-extrabold bg-slate-900 text-white border-slate-900'
+                    : 'squish py-2 rounded-xl border text-xs font-extrabold bg-slate-50 text-slate-600 border-slate-200';
+            });
+            updateKeypadDisplay();
+            haptic(8);
+        }
+
         function openAddModal() {
             selectedNewTags = [];
+            keypadDigits = '';
+            keypadBedSuffix = '';
             renderNewTagPills();
+            setRoomBedSuffix('');
+            updateKeypadDisplay();
             document.getElementById('add-modal').classList.remove('hidden');
-            const input = document.getElementById('room-number-input');
-            input.value = '';
-            setTimeout(() => input.focus(), 60);
+            haptic(10);
         }
 
         function closeAddModal() {
@@ -1926,8 +2011,8 @@ STRICT MEDICAL ACCURACY & SAFETY GUARDRAILS:
 
         function handleAddRoom(e) {
             e.preventDefault();
-            const num = document.getElementById('room-number-input').value.trim();
-            if (!num) return;
+            if (!keypadDigits) return;
+            const num = `${keypadDigits}${keypadBedSuffix}`;
 
             state.rooms.push({
                 id: 'room-' + Date.now(),
