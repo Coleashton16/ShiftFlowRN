@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ShiftFlow RN • Clinical Command HUD</title>
+    
+    <!-- PWA & Mobile Native App Meta -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ShiftFlow RN">
+    <meta name="theme-color" content="#070b14">
+    
+    <link id="pwa-manifest" rel="manifest" href="">
+    <link id="apple-touch-icon" rel="apple-touch-icon" href="">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts: Plus Jakarta Sans (Display/UI) & JetBrains Mono (Clinical Timestamps/Metrics) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #eaedf3;
+            background-image: radial-gradient(circle at 50% 0%, #f8fafc 0%, #e2e8f0 100%);
+            color: #0b1120;
+            height: 100dvh;
+            width: 100%;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            overscroll-behavior: none;
+        }
+
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Crisp tactile spring press */
+        .squish {
+            touch-action: manipulation;
+            transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        .squish:active {
+            transform: scale(0.95);
+        }
+
+        /* Smooth SVG Radial Progress Ring */
+        .ring-progress {
+            transition: stroke-dashoffset 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* Bottom Sheet Entrance */
+        @keyframes drawerRise {
+            from { transform: translateY(100%); opacity: 0.7; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-drawer {
+            animation: drawerRise 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Subtle Ambient Glow on Complete Card */
+        .complete-glow {
+            background: linear-gradient(145deg, #059669 0%, #047857 55%, #065f46 100%);
+            box-shadow: 0 12px 28px -8px rgba(5, 150, 105, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        }
+
+        /* Tactile Room Card Surface */
+        .room-surface {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            box-shadow: 0 6px 20px -6px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04), inset 0 1px 0 #ffffff;
+        }
+
+        /* Internal Scroll Container */
+        .scroll-area {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+        }
+        .scroll-area::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- =========================================================
+         FULL-APP CLINICAL AUTH GATE
+         ========================================================= -->
+    <div id="app-auth-gate" class="fixed inset-0 z-40 bg-[#070b14] text-white flex flex-col justify-center items-center p-5" style="padding-top: calc(var(--safe-top) + 16px); padding-bottom: calc(var(--safe-bottom) + 16px);">
+        <!-- Ambient Mesh Glow -->
+        <div class="pointer-events-none absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full bg-teal-500/15 blur-3xl"></div>
+
+        <div class="relative w-full max-w-sm bg-[#0f1626]/90 backdrop-blur-xl border border-slate-800/90 rounded-[32px] p-6 shadow-2xl space-y-5">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-[22px] bg-gradient-to-br from-teal-400/20 to-emerald-500/10 border border-teal-400/30 flex items-center justify-center text-teal-400 mx-auto mb-3.5 shadow-lg shadow-teal-950/50">
+                    <i class="ph-bold ph-heartbeat text-3xl"></i>
+                </div>
+                <div class="inline-flex items-center gap-2 mb-1">
+                    <h1 class="text-2xl font-extrabold tracking-tight">ShiftFlow <span class="text-teal-400">RN</span></h1>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed max-w-[260px] mx-auto">Sign in to access your encrypted shift board &amp; clinical consult.</p>
+            </div>
+
+            <div id="auth-loading-state" class="py-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2.5">
+                <i class="ph-bold ph-spinner animate-spin text-2xl text-teal-400"></i>
+                <span class="font-semibold tracking-wide">Verifying RN session...</span>
+            </div>
+
+            <form id="app-login-form" onsubmit="handleAppLogin(event)" class="hidden space-y-3.5">
+                <div>
+                    <label for="app-login-email" class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Clinician Email</label>
+                    <input type="email" id="app-login-email" required autocomplete="email" placeholder="rn@unit.org"
+                        class="w-full text-base font-semibold px-4 py-3.5 rounded-2xl bg-[#070b14] border border-slate-800 text-white placeholder-slate-600 focus:border-teal-400 outline-none transition">
+                </div>
+                <div>
+                    <label for="app-login-password" class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Password</label>
+                    <input type="password" id="app-login-password" required autocomplete="current-password" placeholder="••••••••"
+                        class="w-full text-base font-semibold px-4 py-3.5 rounded-2xl bg-[#070b14] border border-slate-800 text-white placeholder-slate-600 focus:border-teal-400 outline-none transition">
+                </div>
+                <p id="app-login-error" class="hidden text-xs font-bold text-rose-300 bg-rose-950/80 border border-rose-800/80 rounded-2xl px-3.5 py-2.5"></p>
+                <button type="submit" id="app-login-submit" class="squish w-full py-4 rounded-2xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 font-extrabold text-sm shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2 mt-1">
+                    <span>Launch Shift HUD</span>
+                    <i class="ph-bold ph-arrow-right text-base"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         TOP COMMAND HUD BAR
+         ========================================================= -->
+    <header class="shrink-0 bg-[#070b14] text-white px-3.5 pb-3 shadow-xl z-20 border-b border-slate-800/80" style="padding-top: calc(var(--safe-top) + 10px);">
+        <div class="max-w-lg mx-auto space-y-2.5">
+            <!-- Row 1: Brand Identity + Primary Action Dock -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-500/25 to-emerald-500/10 border border-teal-400/30 flex items-center justify-center text-teal-400 shrink-0">
+                        <i class="ph-bold ph-heartbeat text-xl"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <h1 class="text-[16px] font-extrabold tracking-tight leading-none">ShiftFlow</h1>
+                            <span id="sync-status-badge" class="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-teal-500/15 text-teal-300 border border-teal-500/30">
+                                <span class="w-1.5 h-1.5 rounded-full bg-teal-400"></span>Synced
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1">
+                            <p id="shift-summary" class="text-[11px] text-slate-400 font-semibold truncate">0 of 0 rooms</p>
+                            <span class="text-slate-700">•</span>
+                            <span id="hud-clock" class="font-mono-num text-[11px] font-bold text-slate-300">--:--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Action Dock -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- AI Clinical Consult Pill -->
+                    <button onclick="openAIConsultModal()" id="ai-consult-btn" aria-label="AI Clinical Consult" class="squish h-10 px-3 rounded-2xl bg-gradient-to-r from-indigo-600/40 to-violet-600/30 hover:from-indigo-600/50 hover:to-violet-600/40 border border-indigo-400/40 text-indigo-100 flex items-center gap-1.5 text-xs font-extrabold shadow-sm">
+                        <i class="ph-fill ph-sparkle text-indigo-300 text-sm"></i>
+                        <span>Consult</span>
+                    </button>
+
+                    <!-- Add Room CTA -->
+                    <button onclick="openAddModal()" class="squish h-10 px-3.5 rounded-2xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 shadow-md shadow-teal-500/15">
+                        <i class="ph-bold ph-plus text-sm"></i>
+                        <span>Room</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Row 2: Compact Shift Controls & Overall Progress Bar -->
+            <div class="flex items-center justify-between gap-2 pt-0.5">
+                <!-- Day / Night Segmented Switch -->
+                <button onclick="toggleShiftMode()" id="shift-mode-btn" class="squish h-7 px-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 flex items-center gap-1.5 text-[11px] font-extrabold shrink-0">
+                    <i id="shift-mode-icon" class="ph-fill ph-sun text-amber-400 text-xs"></i>
+                    <span id="shift-mode-label">Day 0700</span>
+                </button>
+
+                <!-- Shift-Wide Micro Progress Bar -->
+                <div class="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800/90">
+                    <div id="global-progress-bar" class="h-full bg-gradient-to-r from-teal-400 to-emerald-400 transition-all duration-300" style="width: 0%"></div>
+                </div>
+
+                <!-- Utility Icons: Reset & Sign Out -->
+                <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="openResetModal()" aria-label="New Shift Reset" title="New Shift Reset" class="squish w-7 h-7 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+                        <i class="ph-bold ph-arrows-clockwise text-xs"></i>
+                    </button>
+                    <button onclick="handleFirebaseSignOut()" aria-label="Sign Out" title="Sign Out" class="squish w-7 h-7 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 flex items-center justify-center">
+                        <i class="ph-bold ph-sign-out text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================================
+         MAIN SINGLE-SCREEN 2-COLUMN SQUIRCLE BOARD
+         ========================================================= -->
+    <main class="flex-1 flex flex-col w-full max-w-lg mx-auto px-3 pt-3 overflow-hidden" style="padding-bottom: calc(var(--safe-bottom) + 12px);">
+        
+        <!-- 2-Column Adaptive Grid (Fills Viewport Height Cleanly) -->
+        <div id="rooms-container" class="flex-1 grid grid-cols-2 gap-3 min-h-0">
+            <!-- Dynamically injected room squircles -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden flex-1 flex flex-col items-center justify-center text-center px-6">
+            <div class="w-20 h-20 rounded-[28px] bg-white border border-slate-200/80 shadow-lg shadow-slate-900/5 flex items-center justify-center text-teal-600 mb-4">
+                <i class="ph-duotone ph-bed text-4xl"></i>
+            </div>
+            <h2 class="text-lg font-extrabold text-slate-900 tracking-tight">Ready for Shift Report</h2>
+            <p class="text-xs text-slate-500 mt-1.5 mb-6 max-w-[250px] leading-relaxed">
+                Add up to 4–5 patient rooms for oversized, one-tap status tiles that fill your screen. Zero PHI stored.
+            </p>
+            <button onclick="openAddModal()" class="squish inline-flex items-center gap-2 bg-slate-900 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg shadow-slate-900/15">
+                <i class="ph-bold ph-plus-circle text-teal-400 text-lg"></i>
+                <span>Add First Room</span>
+            </button>
+        </div>
+
+        <!-- Dismissible Home-Screen Install Pill -->
+        <div id="install-hint" class="hidden shrink-0 mt-2.5 bg-slate-900 text-slate-200 rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2.5 shadow-md">
+            <div class="flex items-center gap-2">
+                <i class="ph-fill ph-device-mobile text-teal-400 text-base shrink-0"></i>
+                <p class="text-[11px] leading-tight">
+                    <strong class="text-white">Pro Tip:</strong> Add to Home Screen for full-screen floor mode.
+                </p>
+            </div>
+            <button onclick="dismissInstallHint()" class="squish p-1 text-slate-400 hover:text-white">
+                <i class="ph-bold ph-x text-xs"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- =========================================================
+         DRAWER 1: ADD ROOM
+         ========================================================= -->
+    <div id="add-modal" onclick="if(event.target===this)closeAddModal()" class="hidden fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-[3px] flex items-end sm:items-center justify-center p-3">
+        <div class="animate-drawer bg-white w-full max-w-sm rounded-[32px] p-5 shadow-2xl border border-slate-100" style="margin-bottom: var(--safe-bottom);">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-base font-extrabold text-slate-900">Assign Room</h3>
+                    <p class="text-[11px] text-slate-400 font-medium">Room number only • Zero patient identifiers</p>
+                </div>
+                <button onclick="closeAddModal()" class="squish w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+                    <i class="ph-bold ph-x text-sm"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAddRoom(event)" class="space-y-4">
+                <div>
+                    <input type="text" id="room-number-input" required maxlength="12" placeholder="412-A" autocomplete="off" autocorrect="off" autocapitalize="characters"
+                        class="w-full text-2xl font-extrabold text-center tracking-wider px-4 py-4 rounded-2xl bg-slate-50 border-2 border-slate-200 focus:border-teal-500 focus:bg-white outline-none transition">
+                </div>
+                
+                <div>
+                    <span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">Acuity &amp; Precaution Badges</span>
+                    <div id="add-tags-container" class="flex flex-wrap gap-1.5">
+                        <!-- Rendered via JS -->
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeAddModal()" class="squish flex-1 py-3.5 rounded-2xl font-bold text-sm text-slate-600 bg-slate-100">Cancel</button>
+                    <button type="submit" class="squish flex-1 py-3.5 rounded-2xl font-extrabold text-sm text-white bg-slate-900 shadow-md">Add to Board</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         DRAWER 2: ROOM COMMAND SHEET
+         ========================================================= -->
+    <div id="room-sheet-modal" onclick="if(event.target===this)closeRoomSheet()" class="hidden fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-[3px] flex items-end sm:items-center justify-center">
+        <div class="animate-drawer bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] shadow-2xl border-t sm:border border-slate-100 max-h-[90dvh] flex flex-col" style="padding-bottom: calc(var(--safe-bottom) + 12px);">
+            
+            <!-- Handle -->
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 shrink-0 sm:hidden"></div>
+
+            <!-- Sheet Header -->
+            <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="sheet-badge" class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 font-extrabold flex items-center justify-center text-sm"></div>
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900 leading-none tracking-tight">Room <span id="sheet-room-title"></span></h3>
+                        <p id="sheet-room-status" class="text-xs text-slate-500 mt-1 font-medium"></p>
+                    </div>
+                </div>
+                <button onclick="closeRoomSheet()" class="squish w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <i class="ph-bold ph-x text-base"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Controls -->
+            <div id="sheet-body" class="p-4 scroll-area space-y-4">
+                <!-- Dynamically rendered -->
+            </div>
+
+            <!-- Footer Discharge Action -->
+            <div class="px-4 pt-2 shrink-0">
+                <button id="sheet-discharge-btn" class="squish w-full py-3.5 rounded-2xl font-extrabold text-xs text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 flex items-center justify-center gap-1.5">
+                    <i class="ph-bold ph-sign-out text-base"></i>
+                    <span>Discharge / Clear Room</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         DRAWER 3: SHIFT HANDOFF / RESET
+         ========================================================= -->
+    <div id="reset-modal" onclick="if(event.target===this)closeResetModal()" class="hidden fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-[3px] flex items-center justify-center p-4">
+        <div class="animate-drawer bg-white w-full max-w-xs rounded-[32px] p-6 shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mx-auto mb-3">
+                <i class="ph-bold ph-arrows-clockwise text-xl"></i>
+            </div>
+            <h3 class="text-base font-extrabold text-slate-900">Shift Change Reset</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-5 leading-relaxed">Reset tasks for incoming shift or clear all rooms.</p>
+            <div class="space-y-2">
+                <button onclick="resetTasksOnly()" class="squish w-full py-3.5 rounded-2xl font-extrabold text-xs text-teal-900 bg-teal-50 border border-teal-200">Keep Rooms, Reset Tasks</button>
+                <button onclick="clearAllRooms()" class="squish w-full py-3.5 rounded-2xl font-extrabold text-xs text-white bg-rose-600 shadow-sm">Wipe All Rooms</button>
+                <button onclick="closeResetModal()" class="squish w-full py-2.5 rounded-xl font-bold text-xs text-slate-400">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         DRAWER 4: AI CLINICAL CONSULT
+         ========================================================= -->
+    <div id="ai-consult-modal" onclick="if(event.target===this)closeAIConsultModal()" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-[3px] flex items-end sm:items-center justify-center">
+        <div class="animate-drawer bg-white w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] shadow-2xl border-t sm:border border-slate-100 h-[88dvh] sm:h-[82dvh] flex flex-col" style="padding-bottom: calc(var(--safe-bottom) + 10px);">
+            
+            <div class="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 shrink-0 sm:hidden"></div>
+
+            <!-- Header -->
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-sm">
+                        <i class="ph-bold ph-stethoscope text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <h3 class="text-base font-extrabold text-slate-900 leading-none">Clinical Consult</h3>
+                            <span id="ai-model-badge" class="hidden font-mono-num text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">Connected</span>
+                        </div>
+                        <p id="ai-user-status" class="text-[11px] text-slate-500 mt-1 font-medium">RN Verified</p>
+                    </div>
+                </div>
+                <button onclick="closeAIConsultModal()" class="squish w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <i class="ph-bold ph-x text-base"></i>
+                </button>
+            </div>
+
+            <!-- Chat Body -->
+            <div id="ai-chat-view" class="flex-1 flex flex-col min-h-0">
+                <div class="px-3.5 py-2 bg-amber-50 border-b border-amber-200/70 flex items-center gap-2 shrink-0">
+                    <i class="ph-fill ph-shield-warning text-amber-600 text-sm shrink-0"></i>
+                    <p class="text-[10px] font-bold text-amber-900 leading-tight">
+                        De-identified clinical reference only (Zero PHI). Verify dosing &amp; protocols with pharmacy/MAR.
+                    </p>
+                </div>
+
+                <div id="ai-messages-container" class="flex-1 scroll-area p-3.5 space-y-3 bg-slate-50/50">
+                    <div class="bg-white border border-slate-200/80 rounded-2xl rounded-tl-sm p-3.5 text-xs text-slate-700 leading-relaxed max-w-[92%] shadow-2xs">
+                        <p class="font-extrabold text-slate-900 mb-1">ShiftFlow Clinical Consult</p>
+                        <p>Ask de-identified nursing reference questions—IV line compatibility, drip hold parameters, electrolyte replacement protocols, telemetry rhythms, or lab criticals.</p>
+                    </div>
+                </div>
+
+                <!-- Quick Clinical Prompts -->
+                <div class="px-3.5 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0 border-t border-slate-100 bg-white" style="scrollbar-width: none;">
+                    <button type="button" onclick="sendQuickPrompt('Heparin drip nursing monitoring & aPTT safety pearls?')" class="squish shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">Heparin Pearls</button>
+                    <button type="button" onclick="sendQuickPrompt('Key nursing checks before giving IV Metoprolol or Cardizem?')" class="squish shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">Rate Control</button>
+                    <button type="button" onclick="sendQuickPrompt('Hyperkalemia ECG changes & emergency nursing interventions?')" class="squish shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">Hyperkalemia</button>
+                    <button type="button" onclick="clearAIChat()" class="squish shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full bg-rose-50 text-rose-600">Clear</button>
+                </div>
+
+                <!-- Input Dock -->
+                <form onsubmit="handleSendAIMessage(event)" class="p-3 border-t border-slate-100 bg-white flex items-end gap-2 shrink-0">
+                    <textarea id="ai-chat-input" rows="1" maxlength="800" placeholder="Ask a de-identified clinical question..."
+                        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();handleSendAIMessage(event);}"
+                        class="flex-1 text-base font-medium px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white outline-none resize-none max-h-28"></textarea>
+                    <button type="submit" id="ai-send-btn" class="squish w-11 h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <i class="ph-bold ph-paper-plane-right text-lg"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- FLOATING TOAST -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200 bg-slate-950/95 text-white text-xs font-extrabold px-4 py-2.5 rounded-full shadow-2xl border border-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i class="ph-fill ph-check-circle text-teal-400 text-base"></i>
+        <span id="toast-text">Saved</span>
+    </div>
+
+    <!-- =========================================================
+         FIREBASE AUTH & SINGLE-FILE FIRESTORE SYNC (users/{uid})
+         ========================================================= -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBmiuTb6ti6pJwMOOoJGooJwjicwk0k4bo",
+            authDomain: "shift-5fd6d.firebaseapp.com",
+            projectId: "shift-5fd6d",
+            storageBucket: "shift-5fd6d.firebasestorage.app",
+            messagingSenderId: "245510907165",
+            appId: "1:245510907165:web:2dbe3df0b7e833bab62df4",
+            measurementId: "G-JKJ82ZGP70"
+        };
+
+        const fbApp = initializeApp(firebaseConfig);
+        const fbAuth = getAuth(fbApp);
+        const fbDb = getFirestore(fbApp);
+
+        let openRouterCreds = { api: '', slug: '' };
+        let aiChatHistory = [];
+        let isAiGenerating = false;
+        let unsubscribeUserDoc = null;
+        let saveDebounceTimer = null;
+        let isApplyingRemoteSnapshot = false;
+
+        const CLINICAL_SYSTEM_PROMPT = `You are ShiftFlow Clinical Consult, an evidence-based nursing clinical decision support assistant designed for registered nurses (RNs) working in acute care / PCU / telemetry settings.
+
+STRICT MEDICAL ACCURACY & SAFETY GUARDRAILS:
+1. ZERO PHI / HIPAA COMPLIANCE: If the user includes any patient names, room numbers paired with medical conditions, MRNs, dates of birth, or specific dates of care, immediately refuse to process that part and remind them to keep all queries completely de-identified.
+2. NEVER PRESCRIBE OR OVERRIDE ORDERS: You provide nursing educational and clinical reference support only—never medical diagnoses, definitive prescriptions, or instructions to bypass provider orders or hospital protocols.
+3. HIGH-ALERT MEDICATION & DOSING SAFETY: Never calculate or confirm patient-specific weight-based drip rates or final bedside doses as a substitute for smart-pump guardrails, MAR verification, or pharmacist double-checks. Always highlight high-alert parameters (e.g., black box warnings, hemodynamic hold parameters, narrow therapeutic indices, reversal agents, and required lab monitoring).
+4. UNCERTAINTY & ESCALATION: If a clinical scenario sounds unstable (e.g., acute chest pain, airway compromise, acute neuro change, severe hypotension, lethal arrhythmia), prioritize immediate bedside assessment, Rapid Response / provider notification, and ACLS/institutional emergency protocols first. If evidence is uncertain or institution-dependent, explicitly state that and direct the RN to pharmacy or unit policy.
+5. COMMUNICATION STYLE: Be concise, structured, and scannable for a busy bedside nurse. Use short bullet points with bold lead-ins (e.g., **Key Assessment**, **Safety Hold Parameters**, **Monitoring**, **When to Escalate**).`;
+
+        function getUserDocRef(uid) {
+            return doc(fbDb, 'users', uid);
+        }
+
+        function setSyncBadge(status) {
+            const badge = document.getElementById('sync-status-badge');
+            if (!badge) return;
+            if (status === 'saving') {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>Syncing`;
+                badge.className = 'inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30';
+            } else if (status === 'error') {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>Offline`;
+                badge.className = 'inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-300 border border-rose-500/30';
+            } else {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-teal-400"></span>Synced`;
+                badge.className = 'inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-teal-500/15 text-teal-300 border border-teal-500/30';
+            }
+        }
+
+        window.syncStateToFirebase = function(immediate = false) {
+            const user = fbAuth.currentUser;
+            if (!user || isApplyingRemoteSnapshot) return;
+
+            setSyncBadge('saving');
+            clearTimeout(saveDebounceTimer);
+
+            const writeDoc = async () => {
+                try {
+                    await setDoc(getUserDocRef(user.uid), {
+                        email: user.email || '',
+                        shiftMode: window.state.shiftMode,
+                        rooms: window.state.rooms,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                    setSyncBadge('synced');
+                } catch (err) {
+                    setSyncBadge('error');
+                }
+            };
+
+            if (immediate) {
+                writeDoc();
+            } else {
+                saveDebounceTimer = setTimeout(writeDoc, 300);
+            }
+        };
+
+        async function fetchOpenRouterCredentials() {
+            let snap;
+            try {
+                snap = await getDoc(doc(fbDb, 'artificialintelligence', 'authentication'));
+            } catch (err) {
+                if (err?.code === 'permission-denied' || String(err?.message).toLowerCase().includes('permission')) {
+                    throw new Error('Firestore Security Rules are blocking reads to "artificialintelligence/authentication". Allow authenticated reads in Firebase Console → Firestore → Rules.');
+                }
+                throw err;
+            }
+            if (!snap.exists()) throw new Error('Firestore doc artificialintelligence/authentication not found.');
+            const data = snap.data() || {};
+            const apiVal = data.api || data.API || data.apiKey || data.key || '';
+            const slugVal = data.slug || data.SLUG || data.model || '';
+            if (!apiVal || !slugVal) {
+                throw new Error(`Missing fields in authentication doc (found keys: ${Object.keys(data).join(', ') || 'none'}).`);
+            }
+            openRouterCreds = {
+                api: String(apiVal).trim(),
+                slug: String(slugVal).trim()
+            };
+            const badge = document.getElementById('ai-model-badge');
+            if (badge) {
+                badge.textContent = openRouterCreds.slug.split('/').pop() || 'Ready';
+                badge.classList.remove('hidden');
+            }
+        }
+
+        function subscribeToUserSingleFile(user) {
+            if (unsubscribeUserDoc) {
+                unsubscribeUserDoc();
+                unsubscribeUserDoc = null;
+            }
+
+            const userRef = getUserDocRef(user.uid);
+            unsubscribeUserDoc = onSnapshot(userRef, (snap) => {
+                isApplyingRemoteSnapshot = true;
+                try {
+                    if (snap.exists()) {
+                        window.applyRemoteState(snap.data());
+                    } else {
+                        window.loadDefaultStarterRooms();
+                        setDoc(userRef, {
+                            email: user.email || '',
+                            shiftMode: window.state.shiftMode,
+                            rooms: window.state.rooms,
+                            updatedAt: Date.now()
+                        }).catch(() => {});
+                    }
+                    setSyncBadge('synced');
+                } finally {
+                    isApplyingRemoteSnapshot = false;
+                }
+            }, () => {
+                setSyncBadge('error');
+            });
+        }
+
+        onAuthStateChanged(fbAuth, async (user) => {
+            const gate = document.getElementById('app-auth-gate');
+            const loadingEl = document.getElementById('auth-loading-state');
+            const loginForm = document.getElementById('app-login-form');
+            const aiStatusEl = document.getElementById('ai-user-status');
+            const badge = document.getElementById('ai-model-badge');
+
+            if (user) {
+                gate.classList.add('hidden');
+                if (aiStatusEl) aiStatusEl.textContent = user.email || 'Signed in';
+                subscribeToUserSingleFile(user);
+                fetchOpenRouterCredentials().catch(() => {
+                    if (aiStatusEl) aiStatusEl.textContent = 'AI config unavailable';
+                });
+            } else {
+                if (unsubscribeUserDoc) {
+                    unsubscribeUserDoc();
+                    unsubscribeUserDoc = null;
+                }
+                openRouterCreds = { api: '', slug: '' };
+                aiChatHistory = [];
+                if (window.clearLocalMemoryState) window.clearLocalMemoryState();
+                if (badge) badge.classList.add('hidden');
+                loadingEl.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                gate.classList.remove('hidden');
+            }
+        });
+
+        window.handleAppLogin = async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('app-login-email').value.trim();
+            const password = document.getElementById('app-login-password').value;
+            const errEl = document.getElementById('app-login-error');
+            const submitBtn = document.getElementById('app-login-submit');
+
+            errEl.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Signing in...</span>';
+
+            try {
+                await signInWithEmailAndPassword(fbAuth, email, password);
+                document.getElementById('app-login-password').value = '';
+                if (window.showToast) window.showToast('Signed in');
+            } catch (err) {
+                let msg = 'Authentication failed. Check email and password.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                    msg = 'Invalid email or password.';
+                } else if (err.code === 'auth/too-many-requests') {
+                    msg = 'Too many attempts. Try again shortly.';
+                } else if (err.message) {
+                    msg = err.message;
+                }
+                errEl.textContent = msg;
+                errEl.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Launch Shift HUD</span><i class="ph-bold ph-arrow-right text-base"></i>';
+            }
+        };
+
+        window.openAIConsultModal = function() {
+            if (!fbAuth.currentUser) return;
+            document.getElementById('ai-consult-modal').classList.remove('hidden');
+            if (window.haptic) window.haptic(10);
+            if (!openRouterCreds.api || !openRouterCreds.slug) {
+                const statusEl = document.getElementById('ai-user-status');
+                if (statusEl) statusEl.textContent = 'Connecting to Consult...';
+                fetchOpenRouterCredentials()
+                    .then(() => {
+                        if (statusEl) statusEl.textContent = fbAuth.currentUser?.email || 'RN Verified';
+                    })
+                    .catch((err) => {
+                        if (statusEl) statusEl.textContent = 'Config Error';
+                        appendChatBubble('assistant', `
+                            <span class="text-rose-600 font-bold"><i class="ph-bold ph-warning-circle mr-1"></i>Could not load AI config: ${formatClinicalMarkdown(err.message)}</span>
+                        `);
+                    });
+            }
+            setTimeout(() => {
+                const target = document.getElementById('ai-chat-input');
+                if (target) target.focus();
+            }, 80);
+        };
+
+        window.closeAIConsultModal = function() {
+            document.getElementById('ai-consult-modal').classList.add('hidden');
+        };
+
+        window.handleFirebaseSignOut = async function() {
+            try {
+                if (window.closeRoomSheet) window.closeRoomSheet();
+                if (window.closeAddModal) window.closeAddModal();
+                if (window.closeResetModal) window.closeResetModal();
+                closeAIConsultModal();
+                await signOut(fbAuth);
+                if (window.showToast) window.showToast('Signed out');
+            } catch (e) {}
+        };
+
+        window.clearAIChat = function() {
+            aiChatHistory = [];
+            const container = document.getElementById('ai-messages-container');
+            container.innerHTML = `
+                <div class="bg-white border border-slate-200/80 rounded-2xl rounded-tl-sm p-3.5 text-xs text-slate-700 leading-relaxed max-w-[92%] shadow-2xs">
+                    <p class="font-extrabold text-slate-900 mb-1">Consult Cleared</p>
+                    <p>Ready for your next de-identified clinical question.</p>
+                </div>
+            `;
+            if (window.haptic) window.haptic(10);
+        };
+
+        window.sendQuickPrompt = function(text) {
+            const input = document.getElementById('ai-chat-input');
+            if (!input || isAiGenerating) return;
+            input.value = text;
+            handleSendAIMessage(new Event('submit'));
+        };
+
+        function formatClinicalMarkdown(rawText) {
+            const safe = String(rawText)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            return safe
+                .replace(/\*\*(.+?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function appendChatBubble(role, htmlContent, id = '') {
+            const container = document.getElementById('ai-messages-container');
+            const wrapper = document.createElement('div');
+            if (id) wrapper.id = id;
+
+            if (role === 'user') {
+                wrapper.className = 'flex justify-end';
+                wrapper.innerHTML = `
+                    <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-xs font-semibold leading-relaxed max-w-[85%] shadow-xs">
+                        ${htmlContent}
+                    </div>
+                `;
+            } else {
+                wrapper.className = 'flex justify-start';
+                wrapper.innerHTML = `
+                    <div class="bg-white border border-slate-200/80 text-slate-800 rounded-2xl rounded-tl-sm px-3.5 py-3 text-xs leading-relaxed max-w-[94%] shadow-2xs">
+                        ${htmlContent}
+                    </div>
+                `;
+            }
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+            return wrapper;
+        }
+
+        window.handleSendAIMessage = async function(e) {
+            e.preventDefault();
+            if (isAiGenerating) return;
+
+            const input = document.getElementById('ai-chat-input');
+            const sendBtn = document.getElementById('ai-send-btn');
+            const userText = input.value.trim();
+            if (!userText) return;
+
+            if (!fbAuth.currentUser) {
+                if (window.showToast) window.showToast('Please sign in first');
+                return;
+            }
+
+            input.value = '';
+            isAiGenerating = true;
+            sendBtn.disabled = true;
+
+            const escapedUser = userText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            appendChatBubble('user', escapedUser);
+            aiChatHistory.push({ role: 'user', content: userText });
+
+            const typingId = 'ai-typing-' + Date.now();
+            appendChatBubble('assistant', `
+                <div class="flex items-center gap-2 text-slate-500 font-bold">
+                    <i class="ph-bold ph-spinner animate-spin text-indigo-600 text-sm"></i>
+                    <span>Reviewing clinical guidelines...</span>
+                </div>
+            `, typingId);
+
+            try {
+                // Retry loading credentials on demand if initial fetch failed or hadn't finished
+                if (!openRouterCreds.api || !openRouterCreds.slug) {
+                    await fetchOpenRouterCredentials();
+                }
+
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${openRouterCreds.api}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin || 'https://shiftflow.app',
+                        'X-Title': 'ShiftFlow RN Clinical Consult'
+                    },
+                    body: JSON.stringify({
+                        model: openRouterCreds.slug,
+                        temperature: 0.2,
+                        max_tokens: 900,
+                        messages: [
+                            { role: 'system', content: CLINICAL_SYSTEM_PROMPT },
+                            ...aiChatHistory.slice(-10)
+                        ]
+                    })
+                });
+
+                const rawResponseText = await response.text();
+                let data = {};
+                try {
+                    data = JSON.parse(rawResponseText);
+                } catch (_) {
+                    throw new Error(`Invalid response from OpenRouter (${response.status})`);
+                }
+
+                const typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+
+                if (!response.ok) {
+                    const errMsg = data?.error?.message || data?.message || `OpenRouter error (${response.status})`;
+                    throw new Error(errMsg);
+                }
+
+                const msgContent = data?.choices?.[0]?.message?.content;
+                let reply = '';
+                if (typeof msgContent === 'string') {
+                    reply = msgContent.trim();
+                } else if (Array.isArray(msgContent)) {
+                    reply = msgContent.map(part => part?.text || '').join('').trim();
+                }
+
+                if (!reply) throw new Error('Empty response returned by model.');
+
+                aiChatHistory.push({ role: 'assistant', content: reply });
+                appendChatBubble('assistant', `
+                    <div>${formatClinicalMarkdown(reply)}</div>
+                    <div class="mt-2.5 pt-2 border-t border-slate-100 text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                        <i class="ph-fill ph-info text-indigo-500"></i>
+                        <span>Verify with hospital policy, MAR, &amp; pharmacy before bedside action.</span>
+                    </div>
+                `);
+                if (window.haptic) window.haptic(10);
+            } catch (err) {
+                const typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+                aiChatHistory.pop();
+                appendChatBubble('assistant', `
+                    <span class="text-rose-600 font-bold"><i class="ph-bold ph-warning-circle mr-1"></i>${formatClinicalMarkdown(err.message || 'Unable to reach AI Consult right now.')}</span>
+                `);
+            } finally {
+                isAiGenerating = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        };
+    </script>
+
+    <!-- =========================================================
+         CORE BOARD, RADIAL PROGRESS RINGS & TIMERS
+         ========================================================= -->
+    <script>
+        /**
+         * 1. PWA & OFFLINE STABILITY
+         */
+        (function initPWA() {
+            try {
+                const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#070b14"/><path d="M96 272h64l40-112 72 208 48-128h96" fill="none" stroke="#14b8a6" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+                document.getElementById('apple-touch-icon').href = iconUrl;
+
+                const manifest = {
+                    name: "ShiftFlow RN",
+                    short_name: "ShiftFlow",
+                    start_url: ".",
+                    display: "standalone",
+                    background_color: "#eaedf3",
+                    theme_color: "#070b14",
+                    icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
+                };
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+
+                if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+                    const swCode = `
+                        const CACHE = 'shiftflow-hud-v2';
+                        const ASSETS = ['https://cdn.tailwindcss.com', 'https://unpkg.com/@phosphor-icons/web'];
+                        self.addEventListener('install', e => {
+                            self.skipWaiting();
+                            e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}));
+                        });
+                        self.addEventListener('activate', e => clients.claim());
+                        self.addEventListener('fetch', e => {
+                            e.respondWith(
+                                caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+                                    const copy = res.clone();
+                                    caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+                                    return res;
+                                }).catch(() => cached))
+                            );
+                        });
+                    `;
+                    navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }))).catch(() => {});
+                }
+
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                if (!isStandalone && !safeGet('shiftflow_hint_dismissed')) {
+                    document.getElementById('install-hint').classList.remove('hidden');
+                }
+            } catch (e) {}
+        })();
+
+        /**
+         * 2. CLINICAL DATA MODEL
+         */
+        const TAG_DEFS = [
+            { id: 'tele', label: 'TELE', color: 'bg-sky-500/15 text-sky-800 border-sky-300/80' },
+            { id: 'drip', label: 'DRIP', color: 'bg-purple-500/15 text-purple-800 border-purple-300/80' },
+            { id: 'iso',  label: 'ISO',  color: 'bg-amber-500/15 text-amber-900 border-amber-300/80' },
+            { id: 'fall', label: 'FALL', color: 'bg-rose-500/15 text-rose-800 border-rose-300/80' },
+            { id: 'dc',   label: 'D/C',  color: 'bg-emerald-500/15 text-emerald-800 border-emerald-300/80' }
+        ];
+
+        const SHIFT_TIMES = {
+            day:   ['0800', '1200', '1600'],
+            night: ['2000', '0000', '0400']
+        };
+
+        window.state = {
+            shiftMode: 'day',
+            rooms: []
+        };
+        let state = window.state;
+        let activeSheetRoomId = null;
+        let selectedNewTags = [];
+
+        function safeGet(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
+        function safeSet(key, val) {
+            try { localStorage.setItem(key, val); } catch (e) {}
+        }
+
+        function createDefaultTasks() {
+            return {
+                v1: false, a1: false,
+                v2: false, a2: false,
+                v3: false, a3: false,
+                edu: false, carePlan: false, handoff: false
+            };
+        }
+
+        function normalizeRoom(r) {
+            return {
+                id: r.id || ('room-' + Date.now() + Math.random()),
+                number: String(r.number || 'Room'),
+                tags: Array.isArray(r.tags) ? r.tags : [],
+                note: typeof r.note === 'string' ? r.note : '',
+                timerEnd: typeof r.timerEnd === 'number' ? r.timerEnd : null,
+                timerLabel: typeof r.timerLabel === 'string' ? r.timerLabel : '',
+                timerAlerted: Boolean(r.timerAlerted),
+                tasks: { ...createDefaultTasks(), ...(r.tasks || {}) }
+            };
+        }
+
+        window.applyRemoteState = function(data) {
+            state.shiftMode = data?.shiftMode === 'night' ? 'night' : 'day';
+            state.rooms = Array.isArray(data?.rooms) ? data.rooms.map(normalizeRoom) : [];
+            renderBoard();
+            if (activeSheetRoomId) {
+                const stillExists = state.rooms.some(r => r.id === activeSheetRoomId);
+                if (stillExists) {
+                    renderRoomSheet(activeSheetRoomId);
+                } else {
+                    closeRoomSheet();
+                }
+            }
+        };
+
+        window.loadDefaultStarterRooms = function() {
+            state.shiftMode = 'day';
+            state.rooms = [
+                {
+                    id: 'room-demo-1',
+                    number: '408-A',
+                    tags: ['tele', 'drip'],
+                    note: 'Heparin gtt • PTT due 1300',
+                    timerEnd: null,
+                    timerLabel: '',
+                    timerAlerted: false,
+                    tasks: { v1: true, a1: true, v2: true, a2: false, v3: false, a3: false, edu: true, carePlan: false, handoff: false }
+                },
+                {
+                    id: 'room-demo-2',
+                    number: '410-B',
+                    tags: ['dc'],
+                    note: 'Waiting on PT clearance',
+                    timerEnd: null,
+                    timerLabel: '',
+                    timerAlerted: false,
+                    tasks: { v1: true, a1: true, v2: true, a2: true, v3: true, a3: true, edu: true, carePlan: true, handoff: true }
+                }
+            ];
+            renderBoard();
+        };
+
+        window.clearLocalMemoryState = function() {
+            state.shiftMode = 'day';
+            state.rooms = [];
+            renderBoard();
+        };
+
+        function saveState(immediate = false) {
+            if (window.syncStateToFirebase) {
+                window.syncStateToFirebase(immediate);
+            }
+        }
+
+        /**
+         * 3. REAL-TIME CLOCK, WINDOW AWARENESS & 1-SECOND TIMERS
+         */
+        function updateHudClock() {
+            const el = document.getElementById('hud-clock');
+            if (!el) return;
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            el.textContent = `${hh}${mm}`;
+        }
+
+        function getActiveBlockIndex() {
+            const hr = new Date().getHours();
+            if (state.shiftMode === 'day') {
+                if (hr >= 7 && hr < 11) return 1;
+                if (hr >= 11 && hr < 15) return 2;
+                if (hr >= 15 && hr < 19) return 3;
+            } else {
+                if (hr >= 19 && hr < 23) return 1;
+                if (hr >= 23 || hr < 3) return 2;
+                if (hr >= 3 && hr < 7) return 3;
+            }
+            return 0;
+        }
+
+        function formatCountdown(msRemaining) {
+            if (msRemaining <= 0) return 'DUE';
+            const totalSecs = Math.ceil(msRemaining / 1000);
+            const hrs = Math.floor(totalSecs / 3600);
+            const mins = Math.floor((totalSecs % 3600) / 60);
+            const secs = totalSecs % 60;
+            const pad = n => String(n).padStart(2, '0');
+            return hrs > 0 ? `${hrs}:${pad(mins)}:${pad(secs)}` : `${mins}:${pad(secs)}`;
+        }
+
+        function playTimerChime() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                [880, 1174.66].forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime + i * 0.16);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.16 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + i * 0.16);
+                    osc.stop(ctx.currentTime + i * 0.16 + 0.26);
+                });
+            } catch (e) {}
+        }
+
+        function checkTimersTick() {
+            updateHudClock();
+            const now = Date.now();
+            let needsFullRender = false;
+            let stateChanged = false;
+
+            state.rooms.forEach(room => {
+                if (!room.timerEnd) return;
+                const remaining = room.timerEnd - now;
+                const textStr = formatCountdown(remaining);
+
+                document.querySelectorAll(`[data-timer-text="${room.id}"]`).forEach(el => {
+                    if (el.textContent !== textStr) el.textContent = textStr;
+                });
+
+                if (remaining <= 0 && !room.timerAlerted) {
+                    room.timerAlerted = true;
+                    needsFullRender = true;
+                    stateChanged = true;
+                    haptic([40, 60, 40, 60, 40]);
+                    playTimerChime();
+                    showToast(`Timer Due: Room ${room.number} (${room.timerLabel || 'Check'})`);
+                }
+            });
+
+            if (stateChanged) saveState(true);
+            if (needsFullRender) {
+                renderBoard();
+                if (activeSheetRoomId) renderRoomSheet(activeSheetRoomId);
+            }
+        }
+
+        function toggleShiftMode() {
+            state.shiftMode = state.shiftMode === 'day' ? 'night' : 'day';
+            saveState();
+            renderBoard();
+            if (activeSheetRoomId) renderRoomSheet(activeSheetRoomId);
+            haptic(12);
+            showToast(`Switched to ${state.shiftMode === 'day' ? 'Day (0700)' : 'Night (1900)'}`);
+        }
+
+        function getRoomProgress(room) {
+            const keys = ['v1', 'a1', 'v2', 'a2', 'v3', 'a3', 'edu', 'carePlan', 'handoff'];
+            const completed = keys.filter(k => Boolean(room.tasks[k])).length;
+            return { completed, total: 9, isComplete: completed === 9 };
+        }
+
+        function tapTimeCell(roomId, blockNum) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const vKey = 'v' + blockNum;
+            const aKey = 'a' + blockNum;
+            const bothDone = room.tasks[vKey] && room.tasks[aKey];
+            const wasComplete = getRoomProgress(room).isComplete;
+
+            room.tasks[vKey] = !bothDone;
+            room.tasks[aKey] = !bothDone;
+
+            const isNowComplete = getRoomProgress(room).isComplete;
+            saveState();
+            renderBoard();
+
+            if (isNowComplete && !wasComplete) {
+                haptic([25, 40, 25]);
+                showToast(`Room ${room.number} Complete`);
+            } else {
+                haptic(10);
+            }
+        }
+
+        function toggleSingleTask(roomId, taskKey) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const wasComplete = getRoomProgress(room).isComplete;
+            room.tasks[taskKey] = !room.tasks[taskKey];
+            const isNowComplete = getRoomProgress(room).isComplete;
+
+            saveState();
+            renderBoard();
+            if (activeSheetRoomId === roomId) renderRoomSheet(roomId);
+
+            if (isNowComplete && !wasComplete) {
+                haptic([25, 40, 25]);
+                showToast(`Room ${room.number} Complete`);
+            } else {
+                haptic(10);
+            }
+        }
+
+        function toggleRoomTag(roomId, tagId) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            if (room.tags.includes(tagId)) {
+                room.tags = room.tags.filter(t => t !== tagId);
+            } else {
+                room.tags.push(tagId);
+            }
+            saveState();
+            renderBoard();
+            renderRoomSheet(roomId);
+            haptic(10);
+        }
+
+        function setRoomTimer(roomId, minutes, label) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            if (minutes === null) {
+                room.timerEnd = null;
+                room.timerLabel = '';
+                room.timerAlerted = false;
+                showToast('Timer cleared');
+            } else {
+                room.timerEnd = Date.now() + minutes * 60000;
+                room.timerLabel = label;
+                room.timerAlerted = false;
+                showToast(`${label} timer started`);
+            }
+            saveState();
+            renderBoard();
+            renderRoomSheet(roomId);
+            haptic(12);
+        }
+
+        function handleCustomTimer(e, roomId) {
+            e.preventDefault();
+            const input = document.getElementById('custom-timer-mins');
+            if (!input) return;
+            const mins = parseInt(input.value, 10);
+            if (!mins || mins < 1 || mins > 720) {
+                showToast('Enter 1–720 minutes');
+                return;
+            }
+            setRoomTimer(roomId, mins, `${mins}m`);
+        }
+
+        function updateRoomNote(roomId, text) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+            room.note = text.slice(0, 80);
+            saveState(false);
+            renderBoard();
+        }
+
+        /**
+         * 4. RENDER CLINICAL COMMAND HUD BOARD
+         */
+        function renderRadialRing(completed, total) {
+            const radius = 14;
+            const circumference = 2 * Math.PI * radius;
+            const offset = circumference - (completed / total) * circumference;
+            return `
+            <div class="relative w-9 h-9 flex items-center justify-center shrink-0">
+                <svg class="w-9 h-9" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="${radius}" fill="none" stroke="#e2e8f0" stroke-width="3.2"></circle>
+                    <circle class="ring-progress" cx="18" cy="18" r="${radius}" fill="none" stroke="#0d9488" stroke-width="3.2" stroke-linecap="round"
+                        stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle>
+                </svg>
+                <span class="font-mono-num absolute text-[10px] font-extrabold text-slate-800">${completed}/${total}</span>
+            </div>
+            `;
+        }
+
+        function renderBoard() {
+            const container = document.getElementById('rooms-container');
+            const emptyState = document.getElementById('empty-state');
+            const summaryEl = document.getElementById('shift-summary');
+            const globalBar = document.getElementById('global-progress-bar');
+
+            const isDay = state.shiftMode === 'day';
+            document.getElementById('shift-mode-label').textContent = isDay ? 'Day 0700' : 'Night 1900';
+            document.getElementById('shift-mode-icon').className = isDay
+                ? 'ph-fill ph-sun text-amber-400 text-xs'
+                : 'ph-fill ph-moon-stars text-indigo-300 text-xs';
+
+            if (state.rooms.length === 0) {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                summaryEl.textContent = '0 active rooms';
+                if (globalBar) globalBar.style.width = '0%';
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.classList.remove('hidden');
+
+            const rowCount = Math.ceil(state.rooms.length / 2);
+            container.style.gridTemplateRows = `repeat(${rowCount}, minmax(0, 1fr))`;
+
+            let doneRooms = 0;
+            let totalCompletedTasks = 0;
+            const totalPossibleTasks = state.rooms.length * 9;
+            const now = Date.now();
+            const times = SHIFT_TIMES[state.shiftMode];
+            const activeCol = getActiveBlockIndex();
+
+            container.innerHTML = state.rooms.map((room, idx) => {
+                const prog = getRoomProgress(room);
+                totalCompletedTasks += prog.completed;
+                if (prog.isComplete) doneRooms++;
+
+                const isLastOdd = (state.rooms.length % 2 === 1) && (idx === state.rooms.length - 1) && (state.rooms.length > 1);
+                const spanClass = isLastOdd ? 'col-span-2' : '';
+
+                const hasTimer = Boolean(room.timerEnd);
+                const isTimerDue = hasTimer && room.timerEnd <= now;
+                const timerText = hasTimer ? formatCountdown(room.timerEnd - now) : '';
+
+                // COMPLETE STATE: Full Emerald Squircle with Radial Glow & Big Thumbs-Up
+                if (prog.isComplete) {
+                    return `
+                    <button onclick="openRoomSheet('${room.id}')" class="squish complete-glow ${spanClass} w-full h-full rounded-[30px] text-white p-4 border border-emerald-400/50 flex flex-col items-center justify-between relative overflow-hidden">
+                        <div class="w-full flex items-center justify-between">
+                            <span class="text-xl font-extrabold tracking-tight leading-none">${escapeHTML(room.number)}</span>
+                            <span class="font-mono-num text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-black/20 text-emerald-100 border border-white/15">9/9</span>
+                        </div>
+
+                        <div class="my-auto flex flex-col items-center justify-center">
+                            <div class="w-16 h-16 rounded-[22px] bg-white/15 backdrop-blur-xs border border-white/25 flex items-center justify-center mb-2 shadow-lg">
+                                <i class="ph-fill ph-thumbs-up text-4xl text-white"></i>
+                            </div>
+                            <span class="text-[11px] font-extrabold uppercase tracking-widest text-emerald-100">Shift Complete</span>
+                        </div>
+
+                        <div class="w-full text-center truncate text-[11px] font-semibold text-emerald-100/90 h-4">
+                            ${room.note ? escapeHTML(room.note) : 'Tap to review or discharge'}
+                        </div>
+                    </button>
+                    `;
+                }
+
+                // ACTIVE IN-PROGRESS STATE
+                const tagsHTML = room.tags.slice(0, 3).map(tId => {
+                    const def = TAG_DEFS.find(d => d.id === tId);
+                    return def ? `<span class="text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded-md border ${def.color}">${def.label}</span>` : '';
+                }).join('');
+
+                const b1 = getBlockStatusIcon(room, 1, times[0], activeCol === 1);
+                const b2 = getBlockStatusIcon(room, 2, times[1], activeCol === 2);
+                const b3 = getBlockStatusIcon(room, 3, times[2], activeCol === 3);
+                const sh = getShiftIconStatus(room);
+
+                const borderAlert = isTimerDue
+                    ? 'border-amber-400 ring-2 ring-amber-400/50'
+                    : 'border-white';
+
+                return `
+                <div onclick="openRoomSheet('${room.id}')" class="squish room-surface cursor-pointer ${spanClass} w-full h-full rounded-[30px] border-2 ${borderAlert} p-3.5 flex flex-col justify-between overflow-hidden">
+                    
+                    <!-- Top Row: Room Number + Radial Progress Ring -->
+                    <div>
+                        <div class="flex items-center justify-between gap-1.5">
+                            <span class="text-[22px] font-extrabold tracking-tight text-slate-900 leading-none truncate">${escapeHTML(room.number)}</span>
+                            ${renderRadialRing(prog.completed, 9)}
+                        </div>
+
+                        <!-- Badges & Live Countdown Timer -->
+                        <div class="flex flex-wrap items-center gap-1 mt-1.5 min-h-[20px]">
+                            ${hasTimer ? `
+                                <button type="button" onclick="event.stopPropagation(); setRoomTimer('${room.id}', null, '')" title="Tap to clear timer" class="font-mono-num text-[10px] font-extrabold px-1.5 py-0.5 rounded-md flex items-center gap-1 shrink-0 shadow-2xs ${
+                                    isTimerDue ? 'bg-amber-500 text-slate-950 animate-pulse' : 'bg-slate-900 text-white'
+                                }">
+                                    <i class="ph-bold ph-timer text-teal-400"></i><span data-timer-text="${room.id}">${timerText}</span>${isTimerDue ? ' ✕' : ''}
+                                </button>
+                            ` : ''}
+                            ${tagsHTML}
+                        </div>
+                    </div>
+
+                    <!-- Center: 2x2 Tactile Status Grid -->
+                    <div class="grid grid-cols-2 gap-1.5 my-auto py-1">
+                        ${b1}
+                        ${b2}
+                        ${b3}
+                        ${sh}
+                    </div>
+
+                    <!-- Bottom Row: Compact Note Pill -->
+                    <div class="px-2 py-1 rounded-xl text-[11px] font-semibold truncate ${room.note ? 'bg-slate-100/90 text-slate-700' : 'text-slate-400'}">
+                        ${room.note ? `<i class="ph-bold ph-note-pencil mr-1 text-teal-600"></i>${escapeHTML(room.note)}` : 'Tap for flags &amp; notes'}
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            summaryEl.textContent = `${doneRooms}/${state.rooms.length} rooms complete`;
+            if (globalBar) {
+                const pct = totalPossibleTasks > 0 ? Math.round((totalCompletedTasks / totalPossibleTasks) * 100) : 0;
+                globalBar.style.width = `${pct}%`;
+            }
+        }
+
+        function getBlockStatusIcon(room, blockNum, timeLabel, isActiveWindow) {
+            const vDone = room.tasks['v' + blockNum];
+            const aDone = room.tasks['a' + blockNum];
+            const bothDone = vDone && aDone;
+            const partial = (vDone || aDone) && !bothDone;
+
+            let style = '';
+            let icon = '';
+
+            if (bothDone) {
+                style = 'bg-emerald-500/12 border-emerald-300/80 text-emerald-800';
+                icon = '<i class="ph-fill ph-check-circle text-emerald-600 text-base"></i>';
+            } else if (partial) {
+                style = 'bg-amber-500/15 border-amber-300 text-amber-900';
+                icon = '<i class="ph-fill ph-clock-countdown text-amber-500 text-base"></i>';
+            } else if (isActiveWindow) {
+                style = 'bg-teal-500/12 border-teal-400 text-teal-900 shadow-2xs';
+                icon = '<i class="ph-bold ph-heartbeat text-teal-600 text-base"></i>';
+            } else {
+                style = 'bg-slate-100/80 border-slate-200/80 text-slate-400';
+                icon = '<i class="ph ph-circle text-slate-300 text-base"></i>';
+            }
+
+            return `
+            <button type="button" onclick="event.stopPropagation(); tapTimeCell('${room.id}', ${blockNum})" class="squish py-2 px-2.5 rounded-2xl border flex items-center justify-between ${style}">
+                <span class="font-mono-num text-[11px] font-extrabold">${timeLabel}</span>
+                ${icon}
+            </button>
+            `;
+        }
+
+        function getShiftIconStatus(room) {
+            const count = (room.tasks.edu ? 1 : 0) + (room.tasks.carePlan ? 1 : 0) + (room.tasks.handoff ? 1 : 0);
+            const allDone = count === 3;
+
+            const style = allDone
+                ? 'bg-emerald-500/12 border-emerald-300/80 text-emerald-800'
+                : count > 0
+                    ? 'bg-amber-500/15 border-amber-300 text-amber-900'
+                    : 'bg-slate-100/80 border-slate-200/80 text-slate-500';
+
+            const icon = allDone
+                ? '<i class="ph-fill ph-check-circle text-emerald-600 text-base"></i>'
+                : '<i class="ph-bold ph-clipboard-text text-sm opacity-80"></i>';
+
+            return `
+            <div class="py-2 px-2.5 rounded-2xl border flex items-center justify-between ${style}">
+                <span class="font-mono-num text-[11px] font-extrabold">${count}/3</span>
+                ${icon}
+            </div>
+            `;
+        }
+
+        /**
+         * 5. DETAILED ROOM DRAWER
+         */
+        function openRoomSheet(roomId) {
+            activeSheetRoomId = roomId;
+            renderRoomSheet(roomId);
+            document.getElementById('room-sheet-modal').classList.remove('hidden');
+            haptic(10);
+        }
+
+        function closeRoomSheet() {
+            document.getElementById('room-sheet-modal').classList.add('hidden');
+            activeSheetRoomId = null;
+        }
+
+        function renderRoomSheet(roomId) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const prog = getRoomProgress(room);
+            const times = SHIFT_TIMES[state.shiftMode];
+            document.getElementById('sheet-room-title').textContent = room.number;
+
+            const badge = document.getElementById('sheet-badge');
+            const status = document.getElementById('sheet-room-status');
+
+            if (prog.isComplete) {
+                badge.className = 'w-12 h-12 rounded-2xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-2xl shadow-sm';
+                badge.innerHTML = '<i class="ph-fill ph-thumbs-up"></i>';
+                status.textContent = 'All 9 shift requirements complete';
+                status.className = 'text-xs font-extrabold text-emerald-600 mt-1';
+            } else {
+                badge.className = 'font-mono-num w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 text-teal-800 font-extrabold flex items-center justify-center text-sm';
+                badge.textContent = `${prog.completed}/9`;
+                status.textContent = `${9 - prog.completed} requirement${9 - prog.completed === 1 ? '' : 's'} remaining`;
+                status.className = 'text-xs text-slate-500 mt-1 font-medium';
+            }
+
+            const tagsHTML = TAG_DEFS.map(t => {
+                const active = room.tags.includes(t.id);
+                return `
+                <button onclick="toggleRoomTag('${room.id}', '${t.id}')" class="squish px-3 py-1.5 rounded-xl border text-xs font-extrabold transition ${
+                    active ? t.color + ' ring-2 ring-slate-900/10' : 'bg-slate-50 border-slate-200 text-slate-400'
+                }">
+                    ${active ? '✓ ' : ''}${t.label}
+                </button>
+                `;
+            }).join('');
+
+            const hasTimer = Boolean(room.timerEnd);
+            const timerText = hasTimer ? formatCountdown(room.timerEnd - Date.now()) : '';
+
+            document.getElementById('sheet-body').innerHTML = `
+                <!-- Section 1: Quick Shift Note -->
+                <div>
+                    <label class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5">Quick Room Note (Zero PHI)</label>
+                    <input type="text" value="${escapeHTML(room.note)}" oninput="updateRoomNote('${room.id}', this.value)" maxlength="80"
+                        placeholder="e.g. 20G R AC, K+ recheck 1400, NPO..."
+                        class="w-full text-base font-semibold px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:border-teal-500 focus:bg-white outline-none transition">
+                </div>
+
+                <!-- Section 2: Clinical Flags -->
+                <div>
+                    <span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5">Acuity &amp; Precaution Flags</span>
+                    <div class="flex flex-wrap gap-1.5">${tagsHTML}</div>
+                </div>
+
+                <!-- Section 3: Countdown Reminder -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Task Countdown Timer</span>
+                        ${hasTimer ? `<span class="font-mono-num text-[11px] font-extrabold ${room.timerEnd <= Date.now() ? 'text-rose-600 animate-pulse' : 'text-amber-600'}">${escapeHTML(room.timerLabel)} • <span data-timer-text="${room.id}">${timerText}</span></span>` : ''}
+                    </div>
+                    <div class="grid grid-cols-5 gap-1.5 mb-2">
+                        <button type="button" onclick="setRoomTimer('${room.id}', 15, '15m')" class="squish py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs">+15m</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 30, '30m')" class="squish py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs">+30m</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 60, '1h')" class="squish py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs">+1h</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 120, '2h')" class="squish py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs">+2h</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 240, 'Q4h')" class="squish py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs">+4h</button>
+                    </div>
+                    <form onsubmit="handleCustomTimer(event, '${room.id}')" class="flex gap-1.5">
+                        <input type="number" id="custom-timer-mins" min="1" max="720" inputmode="numeric" placeholder="Custom mins (e.g. 45)"
+                            class="flex-1 text-base font-semibold px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:border-teal-500 focus:bg-white outline-none">
+                        <button type="submit" class="squish px-4 py-2 rounded-xl bg-slate-900 text-white font-extrabold text-xs">Start</button>
+                        ${hasTimer ? `<button type="button" onclick="setRoomTimer('${room.id}', null, '')" class="squish px-3 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 font-extrabold text-xs">Clear</button>` : ''}
+                    </form>
+                </div>
+
+                <!-- Section 4: Shift Charting Requirements -->
+                <div class="space-y-1.5">
+                    <span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Shift Requirements</span>
+                    ${renderSheetCheckRow(room.id, 'edu', 'Patient Education Charted', room.tasks.edu)}
+                    ${renderSheetCheckRow(room.id, 'carePlan', 'Care Plan Updated', room.tasks.carePlan)}
+                    ${renderSheetCheckRow(room.id, 'handoff', 'Shift Handoff / Report Ready', room.tasks.handoff)}
+                </div>
+
+                <!-- Section 5: Individual Vitals & Assessments -->
+                <div class="space-y-1.5">
+                    <span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Timed Vitals &amp; Assessments</span>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        ${renderSheetMiniBtn(room.id, 'v1', `${times[0]} Vitals`, room.tasks.v1)}
+                        ${renderSheetMiniBtn(room.id, 'a1', `${times[0]} Assess`, room.tasks.a1)}
+                        ${renderSheetMiniBtn(room.id, 'v2', `${times[1]} Vitals`, room.tasks.v2)}
+                        ${renderSheetMiniBtn(room.id, 'a2', `${times[1]} Assess`, room.tasks.a2)}
+                        ${renderSheetMiniBtn(room.id, 'v3', `${times[2]} Vitals`, room.tasks.v3)}
+                        ${renderSheetMiniBtn(room.id, 'a3', `${times[2]} Assess`, room.tasks.a3)}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('sheet-discharge-btn').onclick = () => {
+                state.rooms = state.rooms.filter(r => r.id !== roomId);
+                saveState();
+                renderBoard();
+                closeRoomSheet();
+                haptic(15);
+                showToast(`Room ${room.number} cleared`);
+            };
+        }
+
+        function renderSheetCheckRow(roomId, key, label, isDone) {
+            return `
+            <button onclick="toggleSingleTask('${roomId}', '${key}')" class="squish w-full py-3.5 px-4 rounded-2xl border flex items-center justify-between font-extrabold text-xs ${
+                isDone ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' : 'bg-slate-50 border-slate-200 text-slate-700'
+            }">
+                <span>${label}</span>
+                <i class="ph-fill ${isDone ? 'ph-check-circle text-lg' : 'ph-circle text-slate-300 text-lg'}"></i>
+            </button>
+            `;
+        }
+
+        function renderSheetMiniBtn(roomId, key, label, isDone) {
+            return `
+            <button onclick="toggleSingleTask('${roomId}', '${key}')" class="squish py-3 px-3 rounded-2xl border flex items-center justify-between font-extrabold text-xs ${
+                isDone ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white border-slate-200 text-slate-600'
+            }">
+                <span class="font-mono-num">${label}</span>
+                <i class="ph-bold ${isDone ? 'ph-check text-emerald-600' : 'ph-circle text-slate-300'}"></i>
+            </button>
+            `;
+        }
+
+        /**
+         * 6. ADD & RESET MODALS
+         */
+        function openAddModal() {
+            selectedNewTags = [];
+            renderNewTagPills();
+            document.getElementById('add-modal').classList.remove('hidden');
+            const input = document.getElementById('room-number-input');
+            input.value = '';
+            setTimeout(() => input.focus(), 60);
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-modal').classList.add('hidden');
+        }
+
+        function renderNewTagPills() {
+            document.getElementById('add-tags-container').innerHTML = TAG_DEFS.map(t => {
+                const active = selectedNewTags.includes(t.id);
+                return `
+                <button type="button" onclick="toggleNewTag('${t.id}')" class="squish px-3 py-1.5 rounded-xl border text-xs font-extrabold ${
+                    active ? t.color : 'bg-slate-50 border-slate-200 text-slate-400'
+                }">
+                    ${active ? '✓ ' : ''}${t.label}
+                </button>
+                `;
+            }).join('');
+        }
+
+        function toggleNewTag(tagId) {
+            if (selectedNewTags.includes(tagId)) {
+                selectedNewTags = selectedNewTags.filter(t => t !== tagId);
+            } else {
+                selectedNewTags.push(tagId);
+            }
+            renderNewTagPills();
+            haptic(8);
+        }
+
+        function handleAddRoom(e) {
+            e.preventDefault();
+            const num = document.getElementById('room-number-input').value.trim();
+            if (!num) return;
+
+            state.rooms.push({
+                id: 'room-' + Date.now(),
+                number: num,
+                tags: [...selectedNewTags],
+                note: '',
+                timerEnd: null,
+                timerLabel: '',
+                timerAlerted: false,
+                tasks: createDefaultTasks()
+            });
+
+            saveState();
+            renderBoard();
+            closeAddModal();
+            haptic(12);
+            showToast(`Room ${num} assigned`);
+        }
+
+        function openResetModal() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+        }
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        function resetTasksOnly() {
+            state.rooms.forEach(r => {
+                r.tasks = createDefaultTasks();
+                r.timerEnd = null;
+                r.timerLabel = '';
+                r.timerAlerted = false;
+                r.note = '';
+            });
+            saveState();
+            renderBoard();
+            closeResetModal();
+            haptic(15);
+            showToast('Tasks reset — rooms kept');
+        }
+
+        function clearAllRooms() {
+            state.rooms = [];
+            saveState();
+            renderBoard();
+            closeResetModal();
+            haptic(15);
+            showToast('Board cleared');
+        }
+
+        function dismissInstallHint() {
+            document.getElementById('install-hint').classList.add('hidden');
+            safeSet('shiftflow_hint_dismissed', '1');
+        }
+
+        function haptic(pattern) {
+            try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').textContent = msg;
+            toast.classList.remove('opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.add('opacity-0'), 1800);
+        }
+
+        function escapeHTML(str) {
+            return String(str).replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        /**
+         * 7. INITIALIZATION
+         */
+        window.addEventListener('DOMContentLoaded', () => {
+            updateHudClock();
+            renderBoard();
+            setInterval(checkTimersTick, 1000);
+            setInterval(renderBoard, 30000);
+        });
+    </script>
+</body>
+</html>
