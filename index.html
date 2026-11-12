@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RN ShiftFlow - Charting & Vitals Tracker</title>
+    
+    <!-- PWA Meta Tags for Mobile Home Screen Installation -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ShiftFlow RN">
+    <meta name="theme-color" content="#0f172a">
+    
+    <!-- Dynamically injected PWA Manifest & Icon via JS below so single-file PWA works seamlessly -->
+    <link id="pwa-manifest" rel="manifest" href="">
+    <link id="apple-touch-icon" rel="apple-touch-icon" href="">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons for crisp medical/UI icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            background-color: #f8fafc;
+        }
+        
+        /* Smooth tactile press for grid cells */
+        .cell-btn {
+            transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .cell-btn:active {
+            transform: scale(0.92);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Ultra-Clean Sticky Header -->
+    <header class="sticky top-0 z-30 bg-slate-900 text-white px-4 py-3 shadow-sm">
+        <div class="max-w-lg mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-400">
+                    <i class="ph-bold ph-heartbeat text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-extrabold tracking-tight leading-none">ShiftFlow <span class="text-teal-400">RN</span></h1>
+                    <p id="shift-summary" class="text-[11px] text-slate-400 mt-1 font-medium">0 of 0 rooms complete</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <!-- Reset Shift Button -->
+                <button onclick="openResetModal()" title="New Shift / Reset" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 active:scale-95 transition">
+                    <i class="ph-bold ph-arrows-clockwise text-base"></i>
+                </button>
+                <!-- Add Room Primary Button -->
+                <button onclick="openAddModal()" class="flex items-center gap-1 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-xs active:scale-95 transition">
+                    <i class="ph-bold ph-plus text-sm"></i>
+                    <span>Room</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Single-Screen Matrix Board -->
+    <main class="flex-1 max-w-lg w-full mx-auto px-3 pt-3 pb-20">
+        
+        <!-- Column Legend (Only visible when rooms exist) -->
+        <div id="board-header" class="hidden grid grid-cols-[84px_1fr_1fr_1fr_1fr] gap-1.5 px-2 pb-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-400 text-center">
+            <div class="text-left pl-1">Room</div>
+            <div>0800</div>
+            <div>1200</div>
+            <div>1600</div>
+            <div>Shift</div>
+        </div>
+
+        <!-- All Rooms Stacked Cleanly on One Screen -->
+        <div id="rooms-container" class="space-y-2.5">
+            <!-- Room rows dynamically injected here -->
+        </div>
+
+        <!-- Empty State (Shown when no rooms exist) -->
+        <div id="empty-state" class="hidden px-6 pt-16 text-center">
+            <div class="w-16 h-16 bg-white rounded-3xl shadow-xs border border-slate-200 flex items-center justify-center mx-auto mb-4 text-teal-600">
+                <i class="ph-duotone ph-bed text-3xl"></i>
+            </div>
+            <h2 class="text-lg font-bold text-slate-800">No Active Rooms</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-6 max-w-xs mx-auto leading-relaxed">Add up to 5 patient rooms to see everything on one clean screen.</p>
+            <button onclick="openAddModal()" class="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-sm active:scale-95 transition">
+                <i class="ph-bold ph-plus-circle text-lg"></i>
+                <span>Add First Room</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- PWA Install Hint Banner (Dismissible) -->
+    <div id="pwa-banner" class="hidden fixed bottom-3 left-3 right-3 max-w-lg mx-auto bg-slate-900/95 backdrop-blur text-white p-3 rounded-2xl shadow-xl border border-slate-700/80 z-20 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+            <i class="ph-bold ph-device-mobile text-teal-400 text-xl shrink-0"></i>
+            <p class="text-[11px] text-slate-200 leading-snug">
+                <strong class="text-white">Install App:</strong> Tap <span class="underline">Share</span> or <span class="underline">Menu</span> &rarr; <strong>"Add to Home Screen"</strong>.
+            </p>
+        </div>
+        <button onclick="dismissBanner()" class="text-slate-400 hover:text-white p-1 shrink-0">
+            <i class="ph-bold ph-x text-sm"></i>
+        </button>
+    </div>
+
+    <!-- MODAL: Add New Room (Simplified: Just Room Number!) -->
+    <div id="add-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-extrabold text-slate-900">Add Room</h3>
+                <button onclick="closeAddModal()" class="p-1.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
+                    <i class="ph-bold ph-x text-sm"></i>
+                </button>
+            </div>
+            <form id="add-room-form" onsubmit="handleAddRoom(event)" class="space-y-4">
+                <div>
+                    <input type="text" id="room-number-input" required placeholder="Room # (e.g. 402-A)" autocomplete="off"
+                        class="w-full text-xl font-extrabold text-center px-4 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-200 focus:border-teal-500 outline-none">
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeAddModal()" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Cancel</button>
+                    <button type="submit" class="flex-1 py-3 rounded-xl font-extrabold text-sm text-white bg-teal-600 hover:bg-teal-500 shadow-sm transition">Add Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Room Quick-Action Sheet (Tap a Room Number to edit Shift items or Discharge) -->
+    <div id="room-sheet-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div id="sheet-badge" class="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 font-extrabold flex items-center justify-center text-sm"></div>
+                    <div>
+                        <h3 class="text-lg font-extrabold text-slate-900 leading-none">Room <span id="sheet-room-title"></span></h3>
+                        <p id="sheet-room-status" class="text-xs text-slate-500 mt-1">Tap items to toggle</p>
+                    </div>
+                </div>
+                <button onclick="closeRoomSheet()" class="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
+                    <i class="ph-bold ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Big Easy Checklist inside Room Sheet -->
+            <div id="sheet-checklist" class="space-y-2 mb-5">
+                <!-- Dynamically rendered -->
+            </div>
+
+            <!-- Discharge Button -->
+            <button id="sheet-discharge-btn" class="w-full py-3 rounded-xl font-bold text-sm text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 flex items-center justify-center gap-2 transition active:scale-98">
+                <i class="ph-bold ph-sign-out text-base"></i>
+                <span>Discharge Patient</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: New Shift / Reset Confirmation -->
+    <div id="reset-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl text-center">
+            <h3 class="text-base font-extrabold text-slate-900">Start New Shift?</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-4">Reset checkmarks or clear all rooms.</p>
+            <div class="space-y-2">
+                <button onclick="resetTasksOnly()" class="w-full py-3 rounded-xl font-bold text-xs text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 transition">Keep Rooms, Uncheck All</button>
+                <button onclick="clearAllRooms()" class="w-full py-3 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-500 transition">Clear All Rooms</button>
+                <button onclick="closeResetModal()" class="w-full py-2.5 rounded-xl font-semibold text-xs text-slate-500 hover:text-slate-700 transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Toast Notification -->
+    <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200 bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
+        <i class="ph-bold ph-check-circle text-emerald-400 text-sm"></i>
+        <span id="toast-text">Saved</span>
+    </div>
+
+    <script>
+        /**
+         * PWA SETUP
+         */
+        (function initPWA() {
+            try {
+                const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0f172a"/><path d="M96 272h64l40-112 72 208 48-128h96" fill="none" stroke="#14b8a6" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+                document.getElementById('apple-touch-icon').href = iconUrl;
+
+                const manifest = {
+                    name: "ShiftFlow RN",
+                    short_name: "ShiftFlow",
+                    start_url: ".",
+                    display: "standalone",
+                    background_color: "#f8fafc",
+                    theme_color: "#0f172a",
+                    icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
+                };
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+
+                if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+                    const swCode = `
+                        self.addEventListener('install', e => self.skipWaiting());
+                        self.addEventListener('activate', e => clients.claim());
+                        self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+                    `;
+                    navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }))).catch(() => {});
+                }
+
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                if (!isStandalone && !localStorage.getItem('shiftflow_banner_dismissed')) {
+                    setTimeout(() => document.getElementById('pwa-banner').classList.remove('hidden'), 1500);
+                }
+            } catch (e) {}
+        })();
+
+        /**
+         * STATE MANAGEMENT
+         * 9 items per room grouped cleanly into 4 columns:
+         * - 0800 (Vitals + Assess)
+         * - 1200 (Vitals + Assess)
+         * - 1600 (Vitals + Assess)
+         * - Shift (Education + Care Plan + Handoff)
+         */
+        const STORAGE_KEY = 'shiftflow_rn_rooms_v1';
+        let rooms = [];
+        let activeSheetRoomId = null;
+
+        function createDefaultTasks() {
+            return {
+                v08: false, a08: false,
+                v12: false, a12: false,
+                v16: false, a16: false,
+                edu: false, carePlan: false, handoff: false
+            };
+        }
+
+        function loadRooms() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    rooms = JSON.parse(raw);
+                } else {
+                    rooms = [
+                        {
+                            id: 'room-1',
+                            number: '304-A',
+                            tasks: { v08: true, a08: true, v12: true, a12: false, v16: false, a16: false, edu: true, carePlan: false, handoff: false }
+                        },
+                        {
+                            id: 'room-2',
+                            number: '305-B',
+                            tasks: { v08: true, a08: true, v12: true, a12: true, v16: true, a16: true, edu: true, carePlan: true, handoff: true }
+                        }
+                    ];
+                    saveRooms();
+                }
+            } catch (e) {
+                rooms = [];
+            }
+        }
+
+        function saveRooms() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+            } catch (e) {}
+        }
+
+        function getRoomProgress(room) {
+            const keys = Object.keys(room.tasks);
+            const completed = keys.filter(k => room.tasks[k]).length;
+            const total = keys.length; // 9
+            return {
+                completed,
+                total,
+                isComplete: completed === total
+            };
+        }
+
+        // Toggle single task (used inside the Room Sheet or individual sub-taps)
+        function toggleTask(roomId, taskKey) {
+            const room = rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const wasComplete = getRoomProgress(room).isComplete;
+            room.tasks[taskKey] = !room.tasks[taskKey];
+            const isNowComplete = getRoomProgress(room).isComplete;
+
+            saveRooms();
+            renderRooms();
+            if (activeSheetRoomId === roomId) renderRoomSheet(roomId);
+
+            if (navigator.vibrate) navigator.vibrate(isNowComplete && !wasComplete ? [25, 40, 25] : 10);
+            if (isNowComplete && !wasComplete) showToast(`Room ${room.number} Complete! 👍`);
+        }
+
+        // One-tap cycle for a Time Cell (0800, 1200, 1600):
+        // Empty -> Both Done (Vitals + Assess) -> Empty
+        // (Or if only 1 was checked, tapping completes both!)
+        function tapTimeCell(roomId, suffix) {
+            const room = rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const vKey = 'v' + suffix;
+            const aKey = 'a' + suffix;
+            const bothDone = room.tasks[vKey] && room.tasks[aKey];
+            const wasComplete = getRoomProgress(room).isComplete;
+
+            room.tasks[vKey] = !bothDone;
+            room.tasks[aKey] = !bothDone;
+
+            const isNowComplete = getRoomProgress(room).isComplete;
+            saveRooms();
+            renderRooms();
+
+            if (navigator.vibrate) navigator.vibrate(isNowComplete && !wasComplete ? [25, 40, 25] : 12);
+            if (isNowComplete && !wasComplete) showToast(`Room ${room.number} Complete! 👍`);
+        }
+
+        /**
+         * RENDER SINGLE-SCREEN 5-ROOM MATRIX BOARD
+         */
+        function renderRooms() {
+            const container = document.getElementById('rooms-container');
+            const emptyState = document.getElementById('empty-state');
+            const boardHeader = document.getElementById('board-header');
+            const summaryEl = document.getElementById('shift-summary');
+
+            if (rooms.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                boardHeader.classList.add('hidden');
+                summaryEl.textContent = '0 active rooms';
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            boardHeader.classList.remove('hidden');
+
+            let completedRoomsCount = 0;
+
+            container.innerHTML = rooms.map(room => {
+                const prog = getRoomProgress(room);
+                if (prog.isComplete) completedRoomsCount++;
+
+                // Count Shift items (Edu, Care Plan, Handoff -> 0 to 3)
+                const shiftCount = (room.tasks.edu ? 1 : 0) + (room.tasks.carePlan ? 1 : 0) + (room.tasks.handoff ? 1 : 0);
+                const shiftDone = shiftCount === 3;
+
+                // Row styling: Turns crisp emerald green with a big thumbs-up when all 9 items are done!
+                const rowStyle = prog.isComplete
+                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                    : 'bg-white border-slate-200/90 text-slate-800 shadow-2xs';
+
+                return `
+                <div class="rounded-2xl border p-2 grid grid-cols-[84px_1fr_1fr_1fr_1fr] gap-1.5 items-center transition-colors duration-200 ${rowStyle}">
+                    
+                    <!-- Col 1: Room Number & Status (Tap to open full checklist or Discharge) -->
+                    <button onclick="openRoomSheet('${room.id}')" class="cell-btn h-14 px-2 rounded-xl flex flex-col items-start justify-center text-left overflow-hidden ${prog.isComplete ? 'bg-emerald-700/60 hover:bg-emerald-700' : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/60'}">
+                        <span class="text-sm font-extrabold tracking-tight truncate w-full leading-tight">${escapeHTML(room.number)}</span>
+                        ${prog.isComplete ? `
+                            <div class="flex items-center gap-1 mt-1 text-emerald-100">
+                                <i class="ph-fill ph-thumbs-up text-base text-white"></i>
+                                <span class="text-[10px] font-extrabold uppercase">Done</span>
+                            </div>
+                        ` : `
+                            <span class="text-[11px] font-bold text-teal-600 mt-0.5">${prog.completed}/${prog.total}</span>
+                        `}
+                    </button>
+
+                    <!-- Col 2: 0800 Vitals + Assess (1-Tap Toggle) -->
+                    ${renderTimeCell(room, '08', prog.isComplete)}
+
+                    <!-- Col 3: 1200 Vitals + Assess (1-Tap Toggle) -->
+                    ${renderTimeCell(room, '12', prog.isComplete)}
+
+                    <!-- Col 4: 1600 Vitals + Assess (1-Tap Toggle) -->
+                    ${renderTimeCell(room, '16', prog.isComplete)}
+
+                    <!-- Col 5: Shift Reqs (Edu, Care Plan, Handoff - Opens Sheet to check off) -->
+                    <button onclick="openRoomSheet('${room.id}')" class="cell-btn h-14 rounded-xl flex flex-col items-center justify-center border ${
+                        prog.isComplete
+                            ? 'bg-emerald-500/30 border-emerald-400/40 text-white'
+                            : shiftDone
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                                : shiftCount > 0
+                                    ? 'bg-amber-50/70 border-amber-300 text-amber-800'
+                                    : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
+                    }">
+                        ${shiftDone ? `
+                            <i class="ph-bold ph-check-circle text-xl ${prog.isComplete ? 'text-white' : 'text-emerald-600'}"></i>
+                            <span class="text-[9px] font-extrabold uppercase mt-0.5">3/3</span>
+                        ` : `
+                            <span class="text-xs font-extrabold">${shiftCount}/3</span>
+                            <span class="text-[9px] font-semibold uppercase tracking-tighter mt-0.5">Tasks</span>
+                        `}
+                    </button>
+
+                </div>
+                `;
+            }).join('');
+
+            summaryEl.textContent = `${completedRoomsCount} of ${rooms.length} room${rooms.length === 1 ? '' : 's'} complete`;
+        }
+
+        // Renders a big, clean 1-tap cell for 0800, 1200, or 1600 (Vitals + Assessment)
+        function renderTimeCell(room, suffix, roomIsComplete) {
+            const vDone = room.tasks['v' + suffix];
+            const aDone = room.tasks['a' + suffix];
+            const bothDone = vDone && aDone;
+            const partialDone = (vDone || aDone) && !bothDone;
+
+            let btnClasses = '';
+            let innerHTML = '';
+
+            if (roomIsComplete) {
+                btnClasses = 'bg-emerald-500/30 border-emerald-400/40 text-white';
+                innerHTML = `<i class="ph-bold ph-check text-xl"></i><span class="text-[9px] font-bold uppercase opacity-90">V+A</span>`;
+            } else if (bothDone) {
+                btnClasses = 'bg-emerald-50 border-emerald-300 text-emerald-700';
+                innerHTML = `<i class="ph-bold ph-check-circle text-xl text-emerald-600"></i><span class="text-[9px] font-extrabold uppercase mt-0.5">V+A</span>`;
+            } else if (partialDone) {
+                btnClasses = 'bg-amber-50 border-amber-300 text-amber-700';
+                innerHTML = `<span class="text-[11px] font-extrabold">${vDone ? 'V ✓' : 'A ✓'}</span><span class="text-[9px] font-semibold uppercase opacity-80">1/2</span>`;
+            } else {
+                btnClasses = 'bg-slate-50 border-slate-200 text-slate-400 hover:border-teal-300';
+                innerHTML = `<i class="ph ph-circle text-lg"></i><span class="text-[9px] font-semibold uppercase mt-0.5">V+A</span>`;
+            }
+
+            return `
+            <button onclick="tapTimeCell('${room.id}', '${suffix}')" class="cell-btn h-14 rounded-xl border flex flex-col items-center justify-center ${btnClasses}">
+                ${innerHTML}
+            </button>
+            `;
+        }
+
+        /**
+         * ROOM QUICK-ACTION SHEET (Clean, uncluttered view for Shift tasks, individual V/A tweaks, & Discharge)
+         */
+        function openRoomSheet(roomId) {
+            activeSheetRoomId = roomId;
+            renderRoomSheet(roomId);
+            document.getElementById('room-sheet-modal').classList.remove('hidden');
+        }
+
+        function closeRoomSheet() {
+            document.getElementById('room-sheet-modal').classList.add('hidden');
+            activeSheetRoomId = null;
+        }
+
+        function renderRoomSheet(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const prog = getRoomProgress(room);
+            document.getElementById('sheet-room-title').textContent = room.number;
+            
+            const badge = document.getElementById('sheet-badge');
+            const status = document.getElementById('sheet-room-status');
+
+            if (prog.isComplete) {
+                badge.className = 'w-10 h-10 rounded-xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-lg';
+                badge.innerHTML = '<i class="ph-fill ph-thumbs-up"></i>';
+                status.textContent = 'All 9 requirements complete!';
+                status.className = 'text-xs font-bold text-emerald-600 mt-1';
+            } else {
+                badge.className = 'w-10 h-10 rounded-xl bg-teal-50 text-teal-700 font-extrabold flex items-center justify-center text-xs';
+                badge.textContent = `${prog.completed}/${prog.total}`;
+                status.textContent = 'Tap to check off items';
+                status.className = 'text-xs text-slate-500 mt-1';
+            }
+
+            // Render clean checklist inside sheet
+            const checklist = document.getElementById('sheet-checklist');
+            checklist.innerHTML = `
+                <!-- Shift Requirements (Primary reason to open sheet) -->
+                <div class="space-y-1.5">
+                    <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1">Shift Requirements</p>
+                    ${renderSheetRow(room.id, 'edu', 'Patient Education', room.tasks.edu)}
+                    ${renderSheetRow(room.id, 'carePlan', 'Care Plan Updated', room.tasks.carePlan)}
+                    ${renderSheetRow(room.id, 'handoff', 'Shift Handoff', room.tasks.handoff)}
+                </div>
+
+                <!-- Individual Vitals & Assessments (In case only 1 of the pair is done) -->
+                <div class="pt-2 space-y-1.5">
+                    <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-1">Timed Vitals & Assessments</p>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        ${renderMiniSheetBtn(room.id, 'v08', '0800 Vitals', room.tasks.v08)}
+                        ${renderMiniSheetBtn(room.id, 'a08', '0800 Assess', room.tasks.a08)}
+                        ${renderMiniSheetBtn(room.id, 'v12', '1200 Vitals', room.tasks.v12)}
+                        ${renderMiniSheetBtn(room.id, 'a12', '1200 Assess', room.tasks.a12)}
+                        ${renderMiniSheetBtn(room.id, 'v16', '1600 Vitals', room.tasks.v16)}
+                        ${renderMiniSheetBtn(room.id, 'a16', '1600 Assess', room.tasks.a16)}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('sheet-discharge-btn').onclick = () => {
+                rooms = rooms.filter(r => r.id !== roomId);
+                saveRooms();
+                renderRooms();
+                closeRoomSheet();
+                showToast(`Room ${room.number} discharged`);
+            };
+        }
+
+        function renderSheetRow(roomId, key, label, isDone) {
+            return `
+            <button onclick="toggleTask('${roomId}', '${key}')" class="w-full py-3 px-3.5 rounded-xl border flex items-center justify-between font-bold text-sm transition active:scale-98 ${
+                isDone ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+            }">
+                <span>${label}</span>
+                <i class="ph-bold ${isDone ? 'ph-check-circle text-lg' : 'ph-circle text-slate-300 text-lg'}"></i>
+            </button>
+            `;
+        }
+
+        function renderMiniSheetBtn(roomId, key, label, isDone) {
+            return `
+            <button onclick="toggleTask('${roomId}', '${key}')" class="py-2 px-2.5 rounded-xl border flex items-center justify-between font-bold text-xs transition active:scale-95 ${
+                isDone ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'
+            }">
+                <span>${label}</span>
+                <i class="ph-bold ${isDone ? 'ph-check text-emerald-600' : 'ph-circle text-slate-300'}"></i>
+            </button>
+            `;
+        }
+
+        /**
+         * MODALS & ACTIONS
+         */
+        function openAddModal() {
+            document.getElementById('add-modal').classList.remove('hidden');
+            const input = document.getElementById('room-number-input');
+            input.value = '';
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-modal').classList.add('hidden');
+        }
+
+        function handleAddRoom(e) {
+            e.preventDefault();
+            const numInput = document.getElementById('room-number-input');
+            const roomNum = numInput.value.trim();
+            if (!roomNum) return;
+
+            rooms.push({
+                id: 'room-' + Date.now(),
+                number: roomNum,
+                tasks: createDefaultTasks()
+            });
+
+            saveRooms();
+            renderRooms();
+            closeAddModal();
+            showToast(`Room ${roomNum} added`);
+        }
+
+        function openResetModal() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        function resetTasksOnly() {
+            rooms.forEach(r => { r.tasks = createDefaultTasks(); });
+            saveRooms();
+            renderRooms();
+            closeResetModal();
+            showToast('Tasks reset for new shift');
+        }
+
+        function clearAllRooms() {
+            rooms = [];
+            saveRooms();
+            renderRooms();
+            closeResetModal();
+            showToast('All rooms cleared');
+        }
+
+        function dismissBanner() {
+            document.getElementById('pwa-banner').classList.add('hidden');
+            localStorage.setItem('shiftflow_banner_dismissed', '1');
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').textContent = msg;
+            toast.classList.remove('opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.add('opacity-0'), 2000);
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadRooms();
+            renderRooms();
+        });
+    </script>
+</body>
+</html>
