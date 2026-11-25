@@ -1,0 +1,2670 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ShiftFlow RN • PCU Clinical Command</title>
+
+    <!-- PWA & Mobile Native App Meta -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ShiftFlow RN">
+    <meta name="theme-color" content="#0b1120">
+
+    <link id="pwa-manifest" rel="manifest" href="">
+    <link id="apple-touch-icon" rel="apple-touch-icon" href="">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts: Plus Jakarta Sans (Clean UI) & JetBrains Mono (Military Time / Room # / Timers) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        /* =========================================================
+           THEME DESIGN TOKENS (LIGHT DAY / LOW-GLARE NIGHT MODE)
+           ========================================================= */
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+            --bg-app: #f1f5f9;
+            --bg-surface: #ffffff;
+            --bg-subtle: #f8fafc;
+            --bg-muted: #e2e8f0;
+            --border-subtle: #e2e8f0;
+            --border-strong: #cbd5e1;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --header-bg: rgba(255, 255, 255, 0.92);
+            --dock-bg: rgba(255, 255, 255, 0.94);
+            --card-shadow: 0 4px 16px -4px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+        }
+
+        [data-theme="dark"] {
+            --bg-app: #070b14;
+            --bg-surface: #101726;
+            --bg-subtle: #161f33;
+            --bg-muted: #1e293b;
+            --border-subtle: #1e293b;
+            --border-strong: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --header-bg: rgba(11, 17, 32, 0.92);
+            --dock-bg: rgba(16, 23, 38, 0.94);
+            --card-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-app);
+            color: var(--text-primary);
+            height: 100dvh;
+            width: 100%;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            overscroll-behavior: none;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+
+        input, textarea {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Theme Utility Bindings */
+        .surface-card {
+            background-color: var(--bg-surface);
+            border-color: var(--border-subtle);
+            box-shadow: var(--card-shadow);
+        }
+        .surface-subtle {
+            background-color: var(--bg-subtle);
+            border-color: var(--border-subtle);
+        }
+        .surface-header {
+            background-color: var(--header-bg);
+            border-color: var(--border-subtle);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+        .surface-dock {
+            background-color: var(--dock-bg);
+            border-color: var(--border-subtle);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .text-main { color: var(--text-primary); }
+        .text-sub { color: var(--text-secondary); }
+        .text-dim { color: var(--text-muted); }
+
+        /* Tactile Button Press */
+        .tap {
+            touch-action: manipulation;
+            transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+        }
+        .tap:active {
+            transform: scale(0.96);
+        }
+
+        /* Scroll Container */
+        .scroll-area {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+        }
+        .scroll-area::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .scroll-area::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 999px;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Drawer & Modal Animations */
+        @keyframes sheetIn {
+            from { transform: translateY(28px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-sheet {
+            animation: sheetIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Subtle Pulse for Overdue / Active Window */
+        @keyframes softPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-soft-pulse {
+            animation: softPulse 1.8s ease-in-out infinite;
+        }
+
+        /* Full-Green Complete Shift Card */
+        .card-complete {
+            background: linear-gradient(145deg, #059669 0%, #047857 58%, #065f46 100%) !important;
+            border-color: #34d399 !important;
+            color: #ffffff !important;
+            box-shadow: 0 12px 28px -8px rgba(5, 150, 105, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+        }
+        .card-dragging {
+            opacity: 0.45;
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- =========================================================
+         FULL-APP CLINICAL AUTH GATE (FIREBASE AUTH)
+         ========================================================= -->
+    <div id="app-auth-gate" class="fixed inset-0 z-50 bg-[#070b14] text-white flex flex-col justify-center items-center p-5" style="padding-top: calc(var(--safe-top) + 16px); padding-bottom: calc(var(--safe-bottom) + 16px);">
+        <div class="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-teal-500/15 blur-3xl"></div>
+
+        <div class="relative w-full max-w-sm bg-[#0f172a]/95 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400/20 to-cyan-500/10 border border-teal-400/30 flex items-center justify-center text-teal-400 mx-auto mb-3.5 shadow-lg shadow-teal-950/60">
+                    <i class="ph-bold ph-heartbeat text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold tracking-tight">ShiftFlow <span class="text-teal-400">PCU</span></h1>
+                <p class="text-xs text-slate-400 mt-1 leading-relaxed max-w-[260px] mx-auto">
+                    Q4H Rounding, Assessments, Care Plans &amp; Clinical Consult for Registered Nurses.
+                </p>
+            </div>
+
+            <div id="auth-loading-state" class="py-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2.5">
+                <i class="ph-bold ph-spinner animate-spin text-2xl text-teal-400"></i>
+                <span class="font-semibold tracking-wide">Verifying RN session...</span>
+            </div>
+
+            <form id="app-login-form" onsubmit="handleAppLogin(event)" class="hidden space-y-3.5">
+                <div>
+                    <label for="app-login-email" class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Clinician Email</label>
+                    <input type="email" id="app-login-email" required autocomplete="email" placeholder="rn@unit.org"
+                        class="w-full text-base font-semibold px-4 py-3.5 rounded-2xl bg-[#070b14] border border-slate-800 text-white placeholder-slate-600 focus:border-teal-400 outline-none transition">
+                </div>
+                <div>
+                    <label for="app-login-password" class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-1.5 pl-1">Password</label>
+                    <input type="password" id="app-login-password" required autocomplete="current-password" placeholder="••••••••"
+                        class="w-full text-base font-semibold px-4 py-3.5 rounded-2xl bg-[#070b14] border border-slate-800 text-white placeholder-slate-600 focus:border-teal-400 outline-none transition">
+                </div>
+                <p id="app-login-error" class="hidden text-xs font-bold text-rose-300 bg-rose-950/80 border border-rose-800/80 rounded-2xl px-3.5 py-2.5"></p>
+                <button type="submit" id="app-login-submit" class="tap w-full py-4 rounded-2xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 font-extrabold text-sm shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2 mt-1">
+                    <span>Start Shift</span>
+                    <i class="ph-bold ph-arrow-right text-base"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         TOP CLINICAL COMMAND HEADER
+         ========================================================= -->
+    <header class="shrink-0 surface-header border-b z-20 px-4 pb-3" style="padding-top: calc(var(--safe-top) + 10px);">
+        <div class="max-w-5xl mx-auto space-y-2.5">
+            <!-- Row 1: Identity, Live Military Clock & Quick Controls -->
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-teal-600/20">
+                        <i class="ph-bold ph-heartbeat text-xl"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <h1 class="text-[15px] font-extrabold tracking-tight leading-none text-main">ShiftFlow <span class="text-teal-600 dark:text-teal-400">PCU</span></h1>
+                            <span id="sync-status-badge" class="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-teal-500/12 text-teal-700 border border-teal-500/25">
+                                <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Synced
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1 text-[11px] font-semibold text-sub">
+                            <span id="hud-clock" class="font-mono-num font-extrabold text-main">--:--</span>
+                            <span class="opacity-40">•</span>
+                            <span id="shift-window-pill" class="truncate">Active Round</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Utility Controls -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- Day / Night Shift Switch -->
+                    <button onclick="toggleShiftMode()" id="shift-mode-btn" title="Switch Day / Night Shift" class="tap h-9 px-2.5 rounded-xl surface-subtle border text-main flex items-center gap-1.5 text-xs font-extrabold">
+                        <i id="shift-mode-icon" class="ph-fill ph-sun text-amber-500 text-sm"></i>
+                        <span id="shift-mode-label" class="hidden sm:inline">Day 0700</span>
+                        <span id="shift-mode-short" class="sm:hidden">0700</span>
+                    </button>
+
+                    <!-- Low-Glare Theme Toggle -->
+                    <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Dark / Light Mode" aria-label="Toggle Theme" class="tap w-9 h-9 rounded-xl surface-subtle border text-sub hover:text-main flex items-center justify-center">
+                        <i id="theme-icon" class="ph-bold ph-moon text-base"></i>
+                    </button>
+
+                    <!-- Shift Reset -->
+                    <button onclick="openResetModal()" title="Shift Change Reset" aria-label="Shift Change Reset" class="tap w-9 h-9 rounded-xl surface-subtle border text-sub hover:text-main flex items-center justify-center">
+                        <i class="ph-bold ph-arrows-clockwise text-base"></i>
+                    </button>
+
+                    <!-- Sign Out -->
+                    <button onclick="handleFirebaseSignOut()" title="Sign Out" aria-label="Sign Out" class="tap w-9 h-9 rounded-xl surface-subtle border text-sub hover:text-rose-500 flex items-center justify-center">
+                        <i class="ph-bold ph-sign-out text-base"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Row 2: Live Q4H Shift Progress Strip -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span id="shift-pct-label" class="font-mono-num text-xs font-extrabold text-teal-600">0%</span>
+                    <span id="shift-summary" class="text-[11px] font-semibold text-sub">0 rooms</span>
+                </div>
+                <div class="flex-1 h-2 rounded-full overflow-hidden surface-subtle border">
+                    <div id="global-progress-bar" class="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <button onclick="openAddModal()" class="tap hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-extrabold shadow-sm">
+                    <i class="ph-bold ph-plus text-sm"></i>
+                    <span>Add Room</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================================
+         MAIN CONTENT VIEWPORT (3 SWITCHABLE TABS)
+         ========================================================= -->
+    <main class="flex-1 min-h-0 overflow-hidden relative">
+
+        <!-- VIEW 1: PATIENT BOARD (ON-THE-FLY ONE-TAP CARDS) -->
+        <section id="view-board" class="h-full scroll-area px-3.5 pt-3.5 pb-28">
+            <div class="max-w-5xl mx-auto">
+                <!-- Quick Filter, Reorder & Round Legend Bar -->
+                <div id="board-toolbar" class="hidden mb-3 flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                        <button onclick="setBoardFilter('all')" id="filter-all" class="tap px-3 py-1.5 rounded-xl text-xs font-extrabold bg-teal-600 text-white">All Rooms</button>
+                        <button onclick="setBoardFilter('attention')" id="filter-attention" class="tap px-3 py-1.5 rounded-xl text-xs font-extrabold surface-card border text-sub">Needs Action</button>
+                        <button onclick="setBoardFilter('complete')" id="filter-complete" class="tap px-3 py-1.5 rounded-xl text-xs font-extrabold surface-card border text-sub">Complete</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-[10px] font-bold text-dim uppercase tracking-wider hidden sm:flex items-center gap-3 mr-1">
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span>Overdue</span>
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-teal-500"></span>Due Now</span>
+                            <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Done</span>
+                        </div>
+                        <button onclick="toggleReorderMode()" id="reorder-mode-btn" class="tap px-3 py-1.5 rounded-xl text-xs font-extrabold surface-card border text-sub flex items-center gap-1.5">
+                            <i class="ph-bold ph-arrows-down-up text-sm"></i>
+                            <span id="reorder-mode-label">Reorder</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Responsive Patient Cards Grid -->
+                <div id="rooms-container" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <!-- Dynamically rendered patient cards -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="hidden py-16 flex flex-col items-center justify-center text-center px-6">
+                    <div class="w-20 h-20 rounded-3xl surface-card border flex items-center justify-center text-teal-600 mb-4">
+                        <i class="ph-duotone ph-bed text-4xl"></i>
+                    </div>
+                    <h2 class="text-lg font-extrabold text-main tracking-tight">Ready for PCU Shift Report</h2>
+                    <p class="text-xs text-sub mt-1.5 mb-6 max-w-xs leading-relaxed">
+                        Add your assigned patient rooms to track Q4H vitals, assessments, education, care plans, handoff, and countdown timers on the fly. Zero PHI stored.
+                    </p>
+                    <button onclick="openAddModal()" class="tap inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-sm px-6 py-3.5 rounded-2xl shadow-lg shadow-teal-600/20">
+                        <i class="ph-bold ph-plus-circle text-lg"></i>
+                        <span>Assign First Room</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: DUE NOW / OVERDUE RADAR -->
+        <section id="view-radar" class="hidden h-full scroll-area px-3.5 pt-3.5 pb-28">
+            <div class="max-w-3xl mx-auto space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-extrabold text-main tracking-tight">Rounding Radar</h2>
+                        <p id="radar-subtitle" class="text-xs text-sub mt-0.5">Active timers, overdue items &amp; current Q4H block</p>
+                    </div>
+                    <span id="radar-count-pill" class="font-mono-num text-xs font-extrabold px-2.5 py-1 rounded-xl bg-teal-500/12 text-teal-600 border border-teal-500/25">0 due</span>
+                </div>
+
+                <div id="radar-content" class="space-y-4">
+                    <!-- Dynamically rendered overdue, active timers, and current round checklist -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: AI CLINICAL CONSULT & IV COMPATIBILITY -->
+        <section id="view-consult" class="hidden h-full flex flex-col max-w-3xl mx-auto pb-20">
+            <!-- Consult Sub-Header & Mode Switcher -->
+            <div class="px-3.5 pt-3 pb-2 shrink-0 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                            <i class="ph-bold ph-stethoscope text-base"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h2 class="text-sm font-extrabold text-main leading-none">Clinical Consult</h2>
+                                <span id="ai-model-badge" class="hidden font-mono-num text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-indigo-500/12 text-indigo-600 border border-indigo-500/25">Connected</span>
+                            </div>
+                            <p id="ai-user-status" class="text-[11px] text-sub mt-0.5">RN Verified • Zero PHI</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="clearAIChat()" id="ai-clear-btn" class="tap px-2.5 py-1.5 rounded-xl surface-subtle border text-[11px] font-bold text-rose-500">
+                        Clear Chat
+                    </button>
+                </div>
+
+                <!-- Segmented Switch: Clinical Chat vs IV Compatibility -->
+                <div class="p-1 rounded-2xl surface-subtle border grid grid-cols-2 gap-1">
+                    <button type="button" id="tab-btn-chat" onclick="switchConsultTab('chat')" class="tap py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow-xs">
+                        <i class="ph-bold ph-chat-circle-text text-sm"></i>
+                        <span>Clinical Chat</span>
+                    </button>
+                    <button type="button" id="tab-btn-compat" onclick="switchConsultTab('compat')" class="tap py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 text-sub">
+                        <i class="ph-bold ph-drop-half-bottom text-sm"></i>
+                        <span>IV Compatibility</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SUB-TAB A: CLINICAL CHAT -->
+            <div id="ai-chat-view" class="flex-1 flex flex-col min-h-0 px-3.5">
+                <div class="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center gap-2 mb-2 shrink-0">
+                    <i class="ph-fill ph-shield-warning text-amber-500 text-sm shrink-0"></i>
+                    <p class="text-[10px] font-bold text-sub leading-tight">
+                        De-identified clinical reference only (No PHI). Always verify dosing &amp; protocols with pharmacy/MAR.
+                    </p>
+                </div>
+
+                <div id="ai-messages-container" class="flex-1 scroll-area space-y-3 py-2 pr-1">
+                    <div class="surface-card border rounded-2xl rounded-tl-sm p-3.5 text-xs text-sub leading-relaxed max-w-[92%]">
+                        <p class="font-extrabold text-main mb-1">PCU Clinical Consult Ready</p>
+                        <p>Ask de-identified nursing reference questions—titration hold parameters, electrolyte replacement protocols, telemetry rhythms, lab criticals, or IV line safety.</p>
+                    </div>
+                </div>
+
+                <!-- Quick Clinical Prompts -->
+                <div class="py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                    <button type="button" onclick="sendQuickPrompt('Heparin drip nursing monitoring & aPTT safety pearls?')" class="tap shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full surface-card border text-sub hover:text-indigo-600">Heparin Pearls</button>
+                    <button type="button" onclick="sendQuickPrompt('Key nursing checks before giving IV Metoprolol or Cardizem?')" class="tap shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full surface-card border text-sub hover:text-indigo-600">Rate Control</button>
+                    <button type="button" onclick="sendQuickPrompt('Hyperkalemia ECG changes & emergency nursing interventions?')" class="tap shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full surface-card border text-sub hover:text-indigo-600">Hyperkalemia</button>
+                    <button type="button" onclick="sendQuickPrompt('PCU BiPAP nursing assessment & red flags for escalation?')" class="tap shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full surface-card border text-sub hover:text-indigo-600">BiPAP Checks</button>
+                </div>
+
+                <!-- Chat Input Dock -->
+                <form onsubmit="handleSendAIMessage(event)" class="pb-2 pt-1 flex items-end gap-2 shrink-0">
+                    <textarea id="ai-chat-input" rows="1" maxlength="800" placeholder="Ask a de-identified clinical question..."
+                        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();handleSendAIMessage(event);}"
+                        class="flex-1 text-base font-medium px-3.5 py-2.5 rounded-2xl surface-card border text-main placeholder-slate-400 focus:border-indigo-500 outline-none resize-none max-h-28"></textarea>
+                    <button type="submit" id="ai-send-btn" class="tap w-11 h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <i class="ph-bold ph-paper-plane-right text-lg"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- SUB-TAB B: IV COMPATIBILITY CHECKER -->
+            <div id="ai-compat-view" class="hidden flex-1 scroll-area px-3.5 pb-4 space-y-3.5">
+                <form onsubmit="handleCheckCompatibility(event)" class="space-y-3 surface-card border p-4 rounded-2xl">
+                    <div>
+                        <label for="compat-drugs-input" class="block text-[10px] font-extrabold uppercase tracking-widest text-dim mb-1">IV Drug(s) to Check</label>
+                        <input type="text" id="compat-drugs-input" required placeholder="e.g. Vancomycin, Zosyn, Heparin"
+                            class="w-full text-base font-semibold px-3.5 py-2.5 rounded-xl surface-subtle border text-main focus:border-indigo-500 outline-none">
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label for="compat-solutions-input" class="block text-[10px] font-extrabold uppercase tracking-widest text-dim">Carrier Solution(s)</label>
+                            <div class="flex items-center gap-1">
+                                <button type="button" onclick="appendCompatSolution('NS')" class="tap text-[10px] font-extrabold px-2 py-0.5 rounded-lg surface-subtle border text-sub">+ NS</button>
+                                <button type="button" onclick="appendCompatSolution('D5W')" class="tap text-[10px] font-extrabold px-2 py-0.5 rounded-lg surface-subtle border text-sub">+ D5W</button>
+                                <button type="button" onclick="appendCompatSolution('LR')" class="tap text-[10px] font-extrabold px-2 py-0.5 rounded-lg surface-subtle border text-sub">+ LR</button>
+                                <button type="button" onclick="appendCompatSolution('D5 1/2NS')" class="tap text-[10px] font-extrabold px-2 py-0.5 rounded-lg surface-subtle border text-sub">+ D5 ½NS</button>
+                            </div>
+                        </div>
+                        <input type="text" id="compat-solutions-input" placeholder="e.g. 0.9% NS, D5W"
+                            class="w-full text-base font-semibold px-3.5 py-2.5 rounded-xl surface-subtle border text-main focus:border-indigo-500 outline-none">
+                    </div>
+
+                    <button type="submit" id="compat-check-btn" class="tap w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm">
+                        <i class="ph-bold ph-magnifying-glass text-sm"></i>
+                        <span>Check IV Compatibility</span>
+                    </button>
+                </form>
+
+                <!-- 4-Box Compatibility Matrix -->
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div id="compat-box-ysite" class="rounded-2xl border-2 surface-card p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all">
+                        <i class="ph-fill ph-question text-3xl text-dim mb-1"></i>
+                        <span class="text-xs font-extrabold text-main">Y-Site</span>
+                        <span class="text-[10px] font-bold text-dim uppercase tracking-wider mt-0.5">Awaiting Query</span>
+                    </div>
+                    <div id="compat-box-piggyback" class="rounded-2xl border-2 surface-card p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all">
+                        <i class="ph-fill ph-question text-3xl text-dim mb-1"></i>
+                        <span class="text-xs font-extrabold text-main">Piggyback (IVPB)</span>
+                        <span class="text-[10px] font-bold text-dim uppercase tracking-wider mt-0.5">Awaiting Query</span>
+                    </div>
+                    <div id="compat-box-syringe" class="rounded-2xl border-2 surface-card p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all">
+                        <i class="ph-fill ph-question text-3xl text-dim mb-1"></i>
+                        <span class="text-xs font-extrabold text-main">Syringe / Mix</span>
+                        <span class="text-[10px] font-bold text-dim uppercase tracking-wider mt-0.5">Awaiting Query</span>
+                    </div>
+                    <div id="compat-box-solution" class="rounded-2xl border-2 surface-card p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all">
+                        <i class="ph-fill ph-question text-3xl text-dim mb-1"></i>
+                        <span class="text-xs font-extrabold text-main">Carrier Solution</span>
+                        <span class="text-[10px] font-bold text-dim uppercase tracking-wider mt-0.5">Awaiting Query</span>
+                    </div>
+                </div>
+
+                <button type="button" onclick="openCompatReportModal()" class="tap w-full py-3.5 px-4 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm">
+                    <i class="ph-bold ph-file-text text-teal-400 text-base"></i>
+                    <span>View Full Compatibility Report</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- =========================================================
+         BOTTOM NAVIGATION DOCK (THUMB-FRIENDLY)
+         ========================================================= -->
+    <nav class="fixed bottom-0 inset-x-0 z-30 surface-dock border-t px-3 pt-2" style="padding-bottom: calc(var(--safe-bottom) + 8px);">
+        <div class="max-w-lg mx-auto grid grid-cols-4 gap-1.5 items-center">
+            <button onclick="switchMainTab('board')" id="nav-board" class="tap py-1.5 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-teal-600">
+                <i class="ph-fill ph-squares-four text-xl"></i>
+                <span class="text-[10px] font-extrabold">Board</span>
+            </button>
+
+            <button onclick="switchMainTab('radar')" id="nav-radar" class="tap relative py-1.5 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-sub">
+                <div class="relative">
+                    <i class="ph-bold ph-bell-ringing text-xl"></i>
+                    <span id="nav-radar-badge" class="hidden absolute -top-1 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white font-mono-num text-[9px] font-extrabold flex items-center justify-center">0</span>
+                </div>
+                <span class="text-[10px] font-extrabold">Due Now</span>
+            </button>
+
+            <button onclick="switchMainTab('consult')" id="nav-consult" class="tap py-1.5 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-sub">
+                <i class="ph-bold ph-sparkle text-xl"></i>
+                <span class="text-[10px] font-extrabold">Consult</span>
+            </button>
+
+            <button onclick="openAddModal()" class="tap py-2 px-3 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white flex flex-col items-center justify-center gap-0.5 shadow-md shadow-teal-600/20">
+                <i class="ph-bold ph-plus text-lg leading-none"></i>
+                <span class="text-[10px] font-extrabold leading-none">Room</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- =========================================================
+         MODAL 1: ADD ROOM (TACTILE KEYPAD + KEYBOARD SUPPORT)
+         ========================================================= -->
+    <div id="add-modal" onclick="if(event.target===this)closeAddModal()" class="hidden fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-[3px] flex items-end sm:items-center justify-center p-3">
+        <div class="animate-sheet surface-card border w-full max-w-sm rounded-3xl p-5 shadow-2xl" style="margin-bottom: var(--safe-bottom);">
+            <div class="flex items-center justify-between mb-3.5">
+                <div>
+                    <h3 class="text-base font-extrabold text-main">Assign PCU Room</h3>
+                    <p class="text-[11px] text-sub font-medium">Room number only • Zero patient identifiers</p>
+                </div>
+                <button onclick="closeAddModal()" class="tap w-8 h-8 rounded-full surface-subtle border text-sub flex items-center justify-center">
+                    <i class="ph-bold ph-x text-sm"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAddRoom(event)" class="space-y-3.5">
+                <!-- Digital Room Readout -->
+                <div class="px-4 py-3 rounded-2xl bg-slate-950 text-white border border-slate-800 flex items-center justify-between shadow-inner">
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Room #</span>
+                    <span id="room-keypad-display" class="font-mono-num text-3xl font-extrabold tracking-wider text-teal-400 min-h-[36px] flex items-center">---</span>
+                    <button type="button" onclick="clearRoomKeypad()" class="tap px-2.5 py-1 rounded-lg bg-slate-800 text-[10px] font-extrabold uppercase tracking-wider text-slate-300 hover:text-white">
+                        Clear
+                    </button>
+                </div>
+
+                <!-- Optional Bed Suffix -->
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button type="button" id="bed-opt-none" onclick="setRoomBedSuffix('')" class="tap py-2 rounded-xl border text-xs font-extrabold bg-teal-600 text-white border-teal-600">Single</button>
+                    <button type="button" id="bed-opt-A" onclick="setRoomBedSuffix('-A')" class="tap py-2 rounded-xl border text-xs font-extrabold surface-subtle text-sub">Bed -A</button>
+                    <button type="button" id="bed-opt-B" onclick="setRoomBedSuffix('-B')" class="tap py-2 rounded-xl border text-xs font-extrabold surface-subtle text-sub">Bed -B</button>
+                </div>
+
+                <!-- 0-9 Keypad -->
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" onclick="pressRoomDigit('1')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">1</button>
+                    <button type="button" onclick="pressRoomDigit('2')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">2</button>
+                    <button type="button" onclick="pressRoomDigit('3')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">3</button>
+                    <button type="button" onclick="pressRoomDigit('4')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">4</button>
+                    <button type="button" onclick="pressRoomDigit('5')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">5</button>
+                    <button type="button" onclick="pressRoomDigit('6')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">6</button>
+                    <button type="button" onclick="pressRoomDigit('7')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">7</button>
+                    <button type="button" onclick="pressRoomDigit('8')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">8</button>
+                    <button type="button" onclick="pressRoomDigit('9')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">9</button>
+                    <button type="button" onclick="pressRoomDigit('-')" class="tap py-3 rounded-2xl surface-subtle border text-sub font-mono-num text-xl font-extrabold">-</button>
+                    <button type="button" onclick="pressRoomDigit('0')" class="tap py-3 rounded-2xl surface-subtle border text-main font-mono-num text-xl font-extrabold">0</button>
+                    <button type="button" onclick="backspaceRoomDigit()" aria-label="Backspace" class="tap py-3 rounded-2xl bg-rose-500/12 border border-rose-500/25 text-rose-500 flex items-center justify-center">
+                        <i class="ph-bold ph-backspace text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Acuity & Precaution Tags -->
+                <div>
+                    <span class="block text-[10px] font-extrabold uppercase tracking-widest text-dim mb-2">Acuity &amp; Precautions</span>
+                    <div id="add-tags-container" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeAddModal()" class="tap flex-1 py-3.5 rounded-2xl font-bold text-sm text-sub surface-subtle border">Cancel</button>
+                    <button type="submit" id="add-room-submit-btn" disabled class="tap flex-1 py-3.5 rounded-2xl font-extrabold text-sm text-white bg-teal-600 disabled:opacity-40 shadow-md">Add Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         MODAL 2: ROOM DETAILS / TIMERS / NOTES / FLAGS DRAWER
+         ========================================================= -->
+    <div id="room-sheet-modal" onclick="if(event.target===this)closeRoomSheet()" class="hidden fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-[3px] flex items-end sm:items-center justify-center">
+        <div class="animate-sheet surface-card border-t sm:border w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[88dvh] flex flex-col" style="padding-bottom: calc(var(--safe-bottom) + 12px);">
+            <div class="w-10 h-1 bg-slate-400/40 rounded-full mx-auto mt-2.5 mb-1 shrink-0 sm:hidden"></div>
+
+            <!-- Header -->
+            <div class="px-5 py-3.5 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="sheet-badge" class="w-11 h-11 rounded-2xl bg-teal-500/12 text-teal-600 font-mono-num font-extrabold flex items-center justify-center text-sm"></div>
+                    <div>
+                        <h3 class="text-lg font-extrabold text-main leading-none tracking-tight">Room <span id="sheet-room-title"></span></h3>
+                        <p id="sheet-room-status" class="text-xs text-sub mt-1 font-medium"></p>
+                    </div>
+                </div>
+                <button onclick="closeRoomSheet()" class="tap w-9 h-9 rounded-full surface-subtle border text-sub flex items-center justify-center">
+                    <i class="ph-bold ph-x text-base"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Controls -->
+            <div id="sheet-body" class="p-4 scroll-area space-y-4"></div>
+
+            <!-- Footer -->
+            <div class="px-4 pt-2 shrink-0">
+                <button id="sheet-discharge-btn" class="tap w-full py-3.5 rounded-2xl font-extrabold text-xs text-rose-500 bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/25 flex items-center justify-center gap-1.5">
+                    <i class="ph-bold ph-sign-out text-base"></i>
+                    <span>Discharge / Clear Room</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         MODAL 3: SHIFT CHANGE / RESET
+         ========================================================= -->
+    <div id="reset-modal" onclick="if(event.target===this)closeResetModal()" class="hidden fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-[3px] flex items-center justify-center p-4">
+        <div class="animate-sheet surface-card border w-full max-w-xs rounded-3xl p-6 shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-2xl surface-subtle border text-main flex items-center justify-center mx-auto mb-3">
+                <i class="ph-bold ph-arrows-clockwise text-xl"></i>
+            </div>
+            <h3 class="text-base font-extrabold text-main">Shift Change Reset</h3>
+            <p class="text-xs text-sub mt-1 mb-5 leading-relaxed">Reset all Q4H &amp; shift tasks for the incoming shift, or wipe the board clean.</p>
+            <div class="space-y-2">
+                <button onclick="resetTasksOnly()" class="tap w-full py-3.5 rounded-2xl font-extrabold text-xs text-teal-600 bg-teal-500/12 border border-teal-500/25">Keep Rooms, Reset Tasks</button>
+                <button onclick="clearAllRooms()" class="tap w-full py-3.5 rounded-2xl font-extrabold text-xs text-white bg-rose-600 shadow-sm">Wipe All Rooms</button>
+                <button onclick="closeResetModal()" class="tap w-full py-2.5 rounded-xl font-bold text-xs text-dim">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         MODAL 4: FULL IV COMPATIBILITY REPORT
+         ========================================================= -->
+    <div id="compat-report-modal" onclick="if(event.target===this)closeCompatReportModal()" class="hidden fixed inset-0 z-[60] bg-slate-950/75 backdrop-blur-[3px] flex items-end sm:items-center justify-center p-3">
+        <div class="animate-sheet surface-card border w-full max-w-lg rounded-3xl shadow-2xl max-h-[85dvh] flex flex-col" style="margin-bottom: var(--safe-bottom);">
+            <div class="px-5 py-3.5 border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-500/12 text-indigo-600 flex items-center justify-center">
+                        <i class="ph-bold ph-file-text text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-main leading-none">Compatibility Report</h3>
+                        <p id="compat-report-subtitle" class="text-[11px] text-sub mt-1 font-medium">Pharmacological Breakdown</p>
+                    </div>
+                </div>
+                <button onclick="closeCompatReportModal()" class="tap w-8 h-8 rounded-full surface-subtle border text-sub flex items-center justify-center">
+                    <i class="ph-bold ph-x text-sm"></i>
+                </button>
+            </div>
+            <div id="compat-report-body" class="p-4 scroll-area text-xs text-sub leading-relaxed space-y-2.5">
+                <p class="text-dim font-semibold text-center py-6">Run a compatibility check first to generate a report.</p>
+            </div>
+            <div class="px-4 py-3 border-t border-[var(--border-subtle)] shrink-0">
+                <button onclick="closeCompatReportModal()" class="tap w-full py-3 rounded-xl bg-teal-600 text-white font-extrabold text-xs">Close Report</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FLOATING TOAST -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[70] pointer-events-none opacity-0 transition-opacity duration-200 bg-slate-950/95 text-white text-xs font-extrabold px-4 py-2.5 rounded-full shadow-2xl border border-slate-800 flex items-center gap-2 whitespace-nowrap">
+        <i class="ph-fill ph-check-circle text-teal-400 text-base"></i>
+        <span id="toast-text">Saved</span>
+    </div>
+
+    <!-- =========================================================
+         FIREBASE AUTH, FIRESTORE SYNC & OPENROUTER AI LINK
+         (PRESERVED EXACT CONNECTION TO YOUR FIREBASE PROJECT)
+         ========================================================= -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBmiuTb6ti6pJwMOOoJGooJwjicwk0k4bo",
+            authDomain: "shift-5fd6d.firebaseapp.com",
+            projectId: "shift-5fd6d",
+            storageBucket: "shift-5fd6d.firebasestorage.app",
+            messagingSenderId: "245510907165",
+            appId: "1:245510907165:web:2dbe3df0b7e833bab62df4",
+            measurementId: "G-JKJ82ZGP70"
+        };
+
+        const fbApp = initializeApp(firebaseConfig);
+        const fbAuth = getAuth(fbApp);
+        const fbDb = getFirestore(fbApp);
+
+        let openRouterCreds = { api: '', slug: '' };
+        let aiChatHistory = [];
+        let isAiGenerating = false;
+        let isCompatChecking = false;
+        let lastCompatReport = {
+            title: 'No Compatibility Check Run Yet',
+            report: 'Enter one or more IV medications and solutions in the IV Compatibility tab, then tap Check IV Compatibility.'
+        };
+        let unsubscribeUserDoc = null;
+        let saveDebounceTimer = null;
+        let isApplyingRemoteSnapshot = false;
+
+        const COMPAT_SYSTEM_PROMPT = `You are an IV drug compatibility reference for RNs (Trissel's / Lexicomp / King Guide standards).
+Analyze compatibility for the requested IV drug(s) and solution(s).
+Respond ONLY with a valid JSON object (no markdown fences, no commentary outside JSON) with this exact schema:
+{
+  "ysite": "compatible" | "incompatible" | "caution" | "nodata",
+  "piggyback": "compatible" | "incompatible" | "caution" | "nodata",
+  "syringe": "compatible" | "incompatible" | "caution" | "nodata",
+  "solution": "compatible" | "incompatible" | "caution" | "nodata",
+  "report": "Concise bulleted nursing report covering Y-Site, Piggyback, Syringe/Admixture, Carrier Solution stability, concentration/pH caveats, and line-flushing safety."
+}
+Rules:
+- Use "incompatible" if physical incompatibility, precipitation, haze, gas, or chemical degradation occurs (or if IV push/syringe mixing is unsafe).
+- Use "caution" if concentration-dependent, diluent-dependent, or conflicting data exists.
+- Use "nodata" if unstudied, insufficient data, or only a single drug was entered without a co-infused partner for Y-site/piggyback/syringe.
+- Never include PHI. Keep report clear and structured with bold labels.`;
+
+        const CLINICAL_SYSTEM_PROMPT = `You are ShiftFlow Clinical Consult, an evidence-based nursing clinical decision support assistant designed for registered nurses (RNs) working in acute care / PCU / telemetry settings.
+
+STRICT MEDICAL ACCURACY & SAFETY GUARDRAILS:
+1. ZERO PHI / HIPAA COMPLIANCE: If the user includes any patient names, room numbers paired with medical conditions, MRNs, dates of birth, or specific dates of care, immediately refuse to process that part and remind them to keep all queries completely de-identified.
+2. NEVER PRESCRIBE OR OVERRIDE ORDERS: You provide nursing educational and clinical reference support only—never medical diagnoses, definitive prescriptions, or instructions to bypass provider orders or hospital protocols.
+3. HIGH-ALERT MEDICATION & DOSING SAFETY: Never calculate or confirm patient-specific weight-based drip rates or final bedside doses as a substitute for smart-pump guardrails, MAR verification, or pharmacist double-checks. Always highlight high-alert parameters (e.g., black box warnings, hemodynamic hold parameters, narrow therapeutic indices, reversal agents, and required lab monitoring).
+4. UNCERTAINTY & ESCALATION: If a clinical scenario sounds unstable (e.g., acute chest pain, airway compromise, acute neuro change, severe hypotension, lethal arrhythmia), prioritize immediate bedside assessment, Rapid Response / provider notification, and ACLS/institutional emergency protocols first. If evidence is uncertain or institution-dependent, explicitly state that and direct the RN to pharmacy or unit policy.
+5. COMMUNICATION STYLE: Be concise, structured, and scannable for a busy bedside nurse. Use short bullet points with bold lead-ins (e.g., **Key Assessment**, **Safety Hold Parameters**, **Monitoring**, **When to Escalate**).`;
+
+        function getUserDocRef(uid) {
+            return doc(fbDb, 'users', uid);
+        }
+
+        function setSyncBadge(status) {
+            const badge = document.getElementById('sync-status-badge');
+            if (!badge) return;
+            if (status === 'saving') {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>Syncing`;
+                badge.className = 'inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 border border-amber-500/30';
+            } else if (status === 'error') {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Offline`;
+                badge.className = 'inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-600 border border-rose-500/30';
+            } else {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Synced`;
+                badge.className = 'inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-teal-500/12 text-teal-600 border border-teal-500/25';
+            }
+        }
+
+        window.syncStateToFirebase = function(immediate = false) {
+            const user = fbAuth.currentUser;
+            if (!user || isApplyingRemoteSnapshot) return;
+
+            setSyncBadge('saving');
+            clearTimeout(saveDebounceTimer);
+
+            const writeDoc = async () => {
+                try {
+                    await setDoc(getUserDocRef(user.uid), {
+                        email: user.email || '',
+                        shiftMode: window.state.shiftMode,
+                        rooms: window.state.rooms,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                    setSyncBadge('synced');
+                } catch (err) {
+                    setSyncBadge('error');
+                }
+            };
+
+            if (immediate) {
+                writeDoc();
+            } else {
+                saveDebounceTimer = setTimeout(writeDoc, 300);
+            }
+        };
+
+        async function fetchOpenRouterCredentials() {
+            let snap;
+            try {
+                snap = await getDoc(doc(fbDb, 'artificialintelligence', 'authentication'));
+            } catch (err) {
+                if (err?.code === 'permission-denied' || String(err?.message).toLowerCase().includes('permission')) {
+                    throw new Error('Firestore Security Rules are blocking reads to "artificialintelligence/authentication". Allow authenticated reads in Firebase Console.');
+                }
+                throw err;
+            }
+            if (!snap.exists()) throw new Error('Firestore doc artificialintelligence/authentication not found.');
+            const data = snap.data() || {};
+            const apiVal = data.api || data.API || data.apiKey || data.key || '';
+            const slugVal = data.slug || data.SLUG || data.model || '';
+            if (!apiVal || !slugVal) {
+                throw new Error(`Missing fields in authentication doc (found keys: ${Object.keys(data).join(', ') || 'none'}).`);
+            }
+            openRouterCreds = {
+                api: String(apiVal).trim(),
+                slug: String(slugVal).trim()
+            };
+            const badge = document.getElementById('ai-model-badge');
+            if (badge) {
+                badge.textContent = openRouterCreds.slug.split('/').pop() || 'Ready';
+                badge.classList.remove('hidden');
+            }
+        }
+
+        window.ensureAICredentialsLoaded = function() {
+            if (!fbAuth.currentUser) return;
+            if (!openRouterCreds.api || !openRouterCreds.slug) {
+                const statusEl = document.getElementById('ai-user-status');
+                if (statusEl) statusEl.textContent = 'Connecting to Consult...';
+                fetchOpenRouterCredentials()
+                    .then(() => {
+                        if (statusEl) statusEl.textContent = (fbAuth.currentUser?.email || 'RN Verified') + ' • Zero PHI';
+                    })
+                    .catch((err) => {
+                        if (statusEl) statusEl.textContent = 'Config Error';
+                        appendChatBubble('assistant', `
+                            <span class="text-rose-500 font-bold"><i class="ph-bold ph-warning-circle mr-1"></i>Could not load AI config: ${formatClinicalMarkdown(err.message)}</span>
+                        `);
+                    });
+            }
+        };
+
+        function subscribeToUserSingleFile(user) {
+            if (unsubscribeUserDoc) {
+                unsubscribeUserDoc();
+                unsubscribeUserDoc = null;
+            }
+
+            const userRef = getUserDocRef(user.uid);
+            unsubscribeUserDoc = onSnapshot(userRef, (snap) => {
+                isApplyingRemoteSnapshot = true;
+                try {
+                    if (snap.exists()) {
+                        window.applyRemoteState(snap.data());
+                    } else {
+                        window.loadDefaultStarterRooms();
+                        setDoc(userRef, {
+                            email: user.email || '',
+                            shiftMode: window.state.shiftMode,
+                            rooms: window.state.rooms,
+                            updatedAt: Date.now()
+                        }).catch(() => {});
+                    }
+                    setSyncBadge('synced');
+                } finally {
+                    isApplyingRemoteSnapshot = false;
+                }
+            }, () => {
+                setSyncBadge('error');
+            });
+        }
+
+        onAuthStateChanged(fbAuth, async (user) => {
+            const gate = document.getElementById('app-auth-gate');
+            const loadingEl = document.getElementById('auth-loading-state');
+            const loginForm = document.getElementById('app-login-form');
+            const aiStatusEl = document.getElementById('ai-user-status');
+            const badge = document.getElementById('ai-model-badge');
+
+            if (user) {
+                gate.classList.add('hidden');
+                if (aiStatusEl) aiStatusEl.textContent = (user.email || 'Signed in') + ' • Zero PHI';
+                subscribeToUserSingleFile(user);
+                fetchOpenRouterCredentials().catch(() => {
+                    if (aiStatusEl) aiStatusEl.textContent = 'AI config unavailable';
+                });
+            } else {
+                if (unsubscribeUserDoc) {
+                    unsubscribeUserDoc();
+                    unsubscribeUserDoc = null;
+                }
+                openRouterCreds = { api: '', slug: '' };
+                aiChatHistory = [];
+                if (window.clearLocalMemoryState) window.clearLocalMemoryState();
+                if (badge) badge.classList.add('hidden');
+                loadingEl.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                gate.classList.remove('hidden');
+            }
+        });
+
+        window.handleAppLogin = async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('app-login-email').value.trim();
+            const password = document.getElementById('app-login-password').value;
+            const errEl = document.getElementById('app-login-error');
+            const submitBtn = document.getElementById('app-login-submit');
+
+            errEl.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Signing in...</span>';
+
+            try {
+                await signInWithEmailAndPassword(fbAuth, email, password);
+                document.getElementById('app-login-password').value = '';
+                if (window.showToast) window.showToast('Signed in');
+            } catch (err) {
+                let msg = 'Authentication failed. Check email and password.';
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                    msg = 'Invalid email or password.';
+                } else if (err.code === 'auth/too-many-requests') {
+                    msg = 'Too many attempts. Try again shortly.';
+                } else if (err.message) {
+                    msg = err.message;
+                }
+                errEl.textContent = msg;
+                errEl.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Start Shift</span><i class="ph-bold ph-arrow-right text-base"></i>';
+            }
+        };
+
+        window.handleFirebaseSignOut = async function() {
+            try {
+                if (window.closeRoomSheet) window.closeRoomSheet();
+                if (window.closeAddModal) window.closeAddModal();
+                if (window.closeResetModal) window.closeResetModal();
+                closeCompatReportModal();
+                await signOut(fbAuth);
+                if (window.showToast) window.showToast('Signed out');
+            } catch (e) {}
+        };
+
+        window.switchConsultTab = function(tab) {
+            const chatView = document.getElementById('ai-chat-view');
+            const compatView = document.getElementById('ai-compat-view');
+            const btnChat = document.getElementById('tab-btn-chat');
+            const btnCompat = document.getElementById('tab-btn-compat');
+            const clearBtn = document.getElementById('ai-clear-btn');
+
+            if (tab === 'compat') {
+                chatView.classList.add('hidden');
+                compatView.classList.remove('hidden');
+                if (clearBtn) clearBtn.classList.add('hidden');
+                btnCompat.className = 'tap py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow-xs';
+                btnChat.className = 'tap py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 text-sub';
+                setTimeout(() => document.getElementById('compat-drugs-input')?.focus(), 60);
+            } else {
+                compatView.classList.add('hidden');
+                chatView.classList.remove('hidden');
+                if (clearBtn) clearBtn.classList.remove('hidden');
+                btnChat.className = 'tap py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 bg-indigo-600 text-white shadow-xs';
+                btnCompat.className = 'tap py-2 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 text-sub';
+            }
+            if (window.haptic) window.haptic(8);
+        };
+
+        window.appendCompatSolution = function(sol) {
+            const input = document.getElementById('compat-solutions-input');
+            if (!input) return;
+            const current = input.value.trim();
+            if (!current) {
+                input.value = sol;
+            } else if (!current.toLowerCase().includes(sol.toLowerCase())) {
+                input.value = `${current}, ${sol}`;
+            }
+            if (window.haptic) window.haptic(8);
+        };
+
+        function renderCompatCard(elementId, title, status) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const s = String(status || 'nodata').toLowerCase().replace(/[^a-z]/g, '');
+
+            if (s === 'compatible') {
+                el.className = 'rounded-2xl border-2 border-emerald-500 bg-emerald-500/10 p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all';
+                el.innerHTML = `
+                    <i class="ph-fill ph-check-circle text-4xl text-emerald-500 mb-1"></i>
+                    <span class="text-xs font-extrabold text-main">${title}</span>
+                    <span class="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider mt-0.5">Compatible</span>
+                `;
+            } else if (s === 'incompatible') {
+                el.className = 'rounded-2xl border-2 border-rose-500 bg-rose-500/10 p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all';
+                el.innerHTML = `
+                    <i class="ph-fill ph-octagon text-4xl text-rose-500 mb-1"></i>
+                    <span class="text-xs font-extrabold text-main">${title}</span>
+                    <span class="text-[10px] font-extrabold text-rose-500 uppercase tracking-wider mt-0.5">Incompatible</span>
+                `;
+            } else if (s === 'caution' || s === 'variable' || s === 'conditional') {
+                el.className = 'rounded-2xl border-2 border-amber-500 bg-amber-500/10 p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all';
+                el.innerHTML = `
+                    <i class="ph-fill ph-warning text-4xl text-amber-500 mb-1"></i>
+                    <span class="text-xs font-extrabold text-main">${title}</span>
+                    <span class="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider mt-0.5">Caution / Variable</span>
+                `;
+            } else {
+                el.className = 'rounded-2xl border-2 surface-card p-3.5 flex flex-col items-center justify-center text-center min-h-[104px] transition-all';
+                el.innerHTML = `
+                    <i class="ph-fill ph-minus-circle text-4xl text-dim mb-1"></i>
+                    <span class="text-xs font-extrabold text-main">${title}</span>
+                    <span class="text-[10px] font-extrabold text-dim uppercase tracking-wider mt-0.5">No Data</span>
+                `;
+            }
+        }
+
+        function extractCompatPayload(rawText) {
+            const cleaned = String(rawText || '')
+                .replace(/<think>[\s\S]*?<\/think>/gi, '')
+                .replace(/```(?:json)?/gi, '')
+                .replace(/```/g, '')
+                .trim();
+
+            const normalizeStatus = (val) => {
+                const s = String(val || '').toLowerCase();
+                if (/\bincompat|\bdo not\b|\bavoid\b|\bprecipitat|\bunsafe/.test(s)) return 'incompatible';
+                if (/\bcaution|\bvariable|\bcondit|\bdepend|\bconflict/.test(s)) return 'caution';
+                if (/\bcompat|\bsafe\b|\bstable\b|\byes\b/.test(s)) return 'compatible';
+                return 'nodata';
+            };
+
+            const startIdx = cleaned.indexOf('{');
+            const endIdx = cleaned.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx > startIdx) {
+                const candidate = cleaned.slice(startIdx, endIdx + 1);
+                try {
+                    const obj = JSON.parse(candidate);
+                    return {
+                        ysite: normalizeStatus(obj.ysite ?? obj.y_site ?? obj['y-site']),
+                        piggyback: normalizeStatus(obj.piggyback ?? obj.ivpb ?? obj['iv_piggyback']),
+                        syringe: normalizeStatus(obj.syringe ?? obj.admixture ?? obj.mix),
+                        solution: normalizeStatus(obj.solution ?? obj.carrier ?? obj.diluent),
+                        report: String(obj.report || obj.summary || obj.details || obj.notes || cleaned).trim()
+                    };
+                } catch (_) {}
+            }
+
+            const detectStatus = (labelRegex) => {
+                const match = cleaned.match(new RegExp(`(?:${labelRegex})[^\\n.]{0,80}`, 'i'));
+                return match ? normalizeStatus(match[0]) : 'nodata';
+            };
+
+            return {
+                ysite: detectStatus('y[-\\s]?site'),
+                piggyback: detectStatus('piggyback|ivpb'),
+                syringe: detectStatus('syringe|admixture'),
+                solution: detectStatus('solution|carrier|diluent'),
+                report: cleaned || 'Compatibility summary generated. Verify with pharmacy/Lexicomp before co-infusing.'
+            };
+        }
+
+        function extractOpenRouterText(data) {
+            const choice = data?.choices?.[0];
+            if (!choice) return '';
+
+            const msg = choice.message || {};
+            const pullString = (val) => {
+                if (typeof val === 'string') return val.trim();
+                if (Array.isArray(val)) {
+                    return val.map(p => (typeof p === 'string' ? p : (p?.text || p?.content || ''))).join('').trim();
+                }
+                return '';
+            };
+
+            const rawContent = pullString(msg.content);
+            const strippedContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+            if (strippedContent) return strippedContent;
+            if (rawContent) return rawContent.replace(/<\/?think>/gi, '').trim();
+
+            // Fallback for reasoning models or alternate providers that place output in reasoning/text fields
+            const reasoningFallback = pullString(msg.reasoning) || pullString(msg.reasoning_content) || pullString(choice.text);
+            if (reasoningFallback) return reasoningFallback.replace(/<\/?think>/gi, '').trim();
+
+            return '';
+        }
+
+        async function callOpenRouter(messages, { title = 'ShiftFlow RN Clinical Consult', temperature = 0.2, maxTokens = 2400 } = {}) {
+            if (!openRouterCreds.api || !openRouterCreds.slug) {
+                await fetchOpenRouterCredentials();
+            }
+
+            const attemptRequest = async (minimalParams = false) => {
+                const body = {
+                    model: openRouterCreds.slug,
+                    messages
+                };
+                if (!minimalParams) {
+                    body.temperature = temperature;
+                    body.max_tokens = maxTokens;
+                }
+
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${openRouterCreds.api}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin || 'https://shiftflow.app',
+                        'X-Title': title
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const rawText = await response.text();
+                let data = {};
+                try {
+                    data = JSON.parse(rawText);
+                } catch (_) {
+                    return { ok: false, status: response.status, errorMsg: `Unexpected response format (${response.status})`, text: '' };
+                }
+
+                if (!response.ok) {
+                    const errMsg = data?.error?.message || data?.message || `Request failed (${response.status})`;
+                    return { ok: false, status: response.status, errorMsg: errMsg, text: '' };
+                }
+
+                const text = extractOpenRouterText(data);
+                return { ok: true, status: response.status, errorMsg: '', text };
+            };
+
+            let lastError = 'Clinical Consult is temporarily unavailable. Please try again.';
+            for (let attempt = 0; attempt < 3; attempt++) {
+                // On retry after a 400 param error or empty output, drop optional params so strict/reasoning models succeed
+                const useMinimal = attempt > 0;
+                try {
+                    const res = await attemptRequest(useMinimal);
+                    if (res.ok && res.text) return res.text;
+
+                    if (res.ok && !res.text) {
+                        lastError = 'The model returned a blank reply—retrying with simplified parameters failed. Try rephrasing your question.';
+                    } else {
+                        lastError = res.errorMsg || lastError;
+                        // Don't retry hard auth failures
+                        if (res.status === 401 || res.status === 403) break;
+                    }
+                } catch (netErr) {
+                    lastError = 'Network issue reaching Clinical Consult. Check your connection and try again.';
+                }
+
+                if (attempt < 2) {
+                    await new Promise(r => setTimeout(r, 700 * (attempt + 1)));
+                }
+            }
+            throw new Error(lastError);
+        }
+
+        window.handleCheckCompatibility = async function(e) {
+            e.preventDefault();
+            if (isCompatChecking) return;
+
+            const drugs = document.getElementById('compat-drugs-input').value.trim();
+            const solutions = document.getElementById('compat-solutions-input').value.trim();
+            const btn = document.getElementById('compat-check-btn');
+            if (!drugs) return;
+
+            if (!fbAuth.currentUser) {
+                if (window.showToast) window.showToast('Please sign in first');
+                return;
+            }
+
+            isCompatChecking = true;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-sm"></i><span>Checking IV Matrix...</span>';
+
+            ['compat-box-ysite', 'compat-box-piggyback', 'compat-box-syringe', 'compat-box-solution'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('opacity-50', 'animate-pulse');
+            });
+
+            try {
+                const queryText = `Drug(s): ${drugs}\nSolution(s): ${solutions || 'None specified'}`;
+                const contentStr = await callOpenRouter([
+                    { role: 'system', content: COMPAT_SYSTEM_PROMPT },
+                    { role: 'user', content: queryText }
+                ], {
+                    title: 'ShiftFlow RN IV Compatibility',
+                    temperature: 0.1,
+                    maxTokens: 2400
+                });
+
+                const parsed = extractCompatPayload(contentStr);
+
+                renderCompatCard('compat-box-ysite', 'Y-Site', parsed.ysite);
+                renderCompatCard('compat-box-piggyback', 'Piggyback (IVPB)', parsed.piggyback);
+                renderCompatCard('compat-box-syringe', 'Syringe / Mix', parsed.syringe);
+                renderCompatCard('compat-box-solution', 'Carrier Solution', parsed.solution);
+
+                lastCompatReport = {
+                    title: `${drugs}${solutions ? ' in ' + solutions : ''}`,
+                    report: parsed.report || 'No additional report details provided.'
+                };
+
+                if (window.haptic) window.haptic(12);
+            } catch (err) {
+                ['compat-box-ysite', 'compat-box-piggyback', 'compat-box-syringe', 'compat-box-solution'].forEach((id, i) => {
+                    const titles = ['Y-Site', 'Piggyback (IVPB)', 'Syringe / Mix', 'Carrier Solution'];
+                    renderCompatCard(id, titles[i], 'nodata');
+                });
+                lastCompatReport = {
+                    title: `${drugs}${solutions ? ' in ' + solutions : ''}`,
+                    report: `Unable to retrieve compatibility data right now: ${err.message}`
+                };
+                if (window.showToast) window.showToast('Compatibility check failed — tap Report for details');
+            } finally {
+                ['compat-box-ysite', 'compat-box-piggyback', 'compat-box-syringe', 'compat-box-solution'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.remove('opacity-50', 'animate-pulse');
+                });
+                isCompatChecking = false;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph-bold ph-magnifying-glass text-sm"></i><span>Check IV Compatibility</span>';
+            }
+        };
+
+        window.openCompatReportModal = function() {
+            document.getElementById('compat-report-subtitle').textContent = lastCompatReport.title;
+            document.getElementById('compat-report-body').innerHTML = `
+                <div class="text-main">${formatClinicalMarkdown(lastCompatReport.report)}</div>
+                <div class="mt-3 pt-2.5 border-t border-[var(--border-subtle)] text-[10px] font-bold text-dim flex items-center gap-1.5">
+                    <i class="ph-fill ph-shield-warning text-amber-500 text-sm shrink-0"></i>
+                    <span>Always verify IV compatibility against institutional Trissel's/Lexicomp &amp; pharmacy before co-infusing.</span>
+                </div>
+            `;
+            document.getElementById('compat-report-modal').classList.remove('hidden');
+            if (window.haptic) window.haptic(10);
+        };
+
+        window.closeCompatReportModal = function() {
+            document.getElementById('compat-report-modal').classList.add('hidden');
+        };
+
+        window.clearAIChat = function() {
+            aiChatHistory = [];
+            const container = document.getElementById('ai-messages-container');
+            container.innerHTML = `
+                <div class="surface-card border rounded-2xl rounded-tl-sm p-3.5 text-xs text-sub leading-relaxed max-w-[92%]">
+                    <p class="font-extrabold text-main mb-1">Consult Cleared</p>
+                    <p>Ready for your next de-identified clinical question.</p>
+                </div>
+            `;
+            if (window.haptic) window.haptic(10);
+        };
+
+        window.sendQuickPrompt = function(text) {
+            const input = document.getElementById('ai-chat-input');
+            if (!input || isAiGenerating) return;
+            input.value = text;
+            handleSendAIMessage(new Event('submit'));
+        };
+
+        function formatClinicalMarkdown(rawText) {
+            const safe = String(rawText || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            return safe
+                .replace(/^###\s+(.+)$/gm, '<div class="font-extrabold text-main mt-2 mb-0.5">$1</div>')
+                .replace(/^##\s+(.+)$/gm, '<div class="font-extrabold text-main text-sm mt-2 mb-0.5">$1</div>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong class="font-extrabold text-main">$1</strong>')
+                .replace(/^\s*[-*]\s+(.+)$/gm, '<div class="pl-3 relative"><span class="absolute left-0 text-indigo-500">•</span>$1</div>')
+                .replace(/\n/g, '<br>')
+                .replace(/(<\/div>)<br>/g, '$1');
+        }
+
+        function appendChatBubble(role, htmlContent, id = '') {
+            const container = document.getElementById('ai-messages-container');
+            const wrapper = document.createElement('div');
+            if (id) wrapper.id = id;
+
+            if (role === 'user') {
+                wrapper.className = 'flex justify-end';
+                wrapper.innerHTML = `
+                    <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-3.5 py-2.5 text-xs font-semibold leading-relaxed max-w-[85%] shadow-xs">
+                        ${htmlContent}
+                    </div>
+                `;
+            } else {
+                wrapper.className = 'flex justify-start';
+                wrapper.innerHTML = `
+                    <div class="surface-card border text-sub rounded-2xl rounded-tl-sm px-3.5 py-3 text-xs leading-relaxed max-w-[94%]">
+                        ${htmlContent}
+                    </div>
+                `;
+            }
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
+            return wrapper;
+        }
+
+        window.handleSendAIMessage = async function(e) {
+            e.preventDefault();
+            if (isAiGenerating) return;
+
+            const input = document.getElementById('ai-chat-input');
+            const sendBtn = document.getElementById('ai-send-btn');
+            const userText = input.value.trim();
+            if (!userText) return;
+
+            if (!fbAuth.currentUser) {
+                if (window.showToast) window.showToast('Please sign in first');
+                return;
+            }
+
+            input.value = '';
+            isAiGenerating = true;
+            sendBtn.disabled = true;
+
+            const escapedUser = userText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            appendChatBubble('user', escapedUser);
+            aiChatHistory.push({ role: 'user', content: userText });
+
+            const typingId = 'ai-typing-' + Date.now();
+            appendChatBubble('assistant', `
+                <div class="flex items-center gap-2 text-sub font-bold">
+                    <i class="ph-bold ph-spinner animate-spin text-indigo-500 text-sm"></i>
+                    <span>Reviewing clinical guidelines...</span>
+                </div>
+            `, typingId);
+
+            try {
+                const reply = await callOpenRouter([
+                    { role: 'system', content: CLINICAL_SYSTEM_PROMPT },
+                    ...aiChatHistory.slice(-10)
+                ], {
+                    title: 'ShiftFlow RN Clinical Consult',
+                    temperature: 0.2,
+                    maxTokens: 2400
+                });
+
+                const typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+
+                aiChatHistory.push({ role: 'assistant', content: reply });
+                appendChatBubble('assistant', `
+                    <div>${formatClinicalMarkdown(reply)}</div>
+                    <div class="mt-2.5 pt-2 border-t border-[var(--border-subtle)] text-[10px] font-bold text-dim flex items-center gap-1">
+                        <i class="ph-fill ph-info text-indigo-500"></i>
+                        <span>Verify with hospital policy, MAR, &amp; pharmacy before bedside action.</span>
+                    </div>
+                `);
+                if (window.haptic) window.haptic(10);
+            } catch (err) {
+                const typingEl = document.getElementById(typingId);
+                if (typingEl) typingEl.remove();
+                aiChatHistory.pop();
+                appendChatBubble('assistant', `
+                    <span class="text-rose-500 font-bold"><i class="ph-bold ph-warning-circle mr-1"></i>${formatClinicalMarkdown(err.message || 'Unable to reach AI Consult right now.')}</span>
+                `);
+            } finally {
+                isAiGenerating = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        };
+    </script>
+
+    <!-- =========================================================
+         CORE PCU SHIFT TRACKER, OVERDUE RADAR & INTERACTIONS
+         ========================================================= -->
+    <script>
+        /**
+         * 1. PWA MANIFEST & ICON
+         */
+        (function initPWA() {
+            try {
+                const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0b1120"/><path d="M96 272h64l40-112 72 208 48-128h96" fill="none" stroke="#14b8a6" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                const iconUrl = 'data:image/svg+xml;base64,' + btoa(svgIcon);
+                document.getElementById('apple-touch-icon').href = iconUrl;
+
+                const manifest = {
+                    name: "ShiftFlow RN PCU",
+                    short_name: "ShiftFlow",
+                    start_url: ".",
+                    display: "standalone",
+                    background_color: "#f1f5f9",
+                    theme_color: "#0b1120",
+                    icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
+                };
+                const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+            } catch (e) {}
+        })();
+
+        /**
+         * 2. CLINICAL DATA MODEL & PCU PRESETS
+         */
+        const TAG_DEFS = [
+            { id: 'tele', label: 'TELE', color: 'bg-sky-500/15 text-sky-600 border-sky-500/30' },
+            { id: 'drip', label: 'DRIP', color: 'bg-purple-500/15 text-purple-600 border-purple-500/30' },
+            { id: 'o2',   label: 'O2/NIV', color: 'bg-cyan-500/15 text-cyan-600 border-cyan-500/30' },
+            { id: 'iso',  label: 'ISO',  color: 'bg-amber-500/15 text-amber-600 border-amber-500/30' },
+            { id: 'fall', label: 'FALL', color: 'bg-rose-500/15 text-rose-600 border-rose-500/30' },
+            { id: 'npo',  label: 'NPO',  color: 'bg-orange-500/15 text-orange-600 border-orange-500/30' },
+            { id: 'dc',   label: 'D/C',  color: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' }
+        ];
+
+        const QUICK_NOTE_CHIPS = [
+            'Heparin gtt',
+            'K+ recheck',
+            'aPTT due',
+            'NPO MN',
+            '20G R AC',
+            'Bed alarm ON',
+            'PT/OT eval'
+        ];
+
+        const SHIFT_TIMES = {
+            day:   ['0800', '1200', '1600'],
+            night: ['2000', '0000', '0400']
+        };
+
+        // 10 core PCU tasks (compatible with existing 9 + Tele Strip)
+        const CORE_TASK_KEYS = ['v1', 'a1', 'v2', 'a2', 'v3', 'a3', 'edu', 'carePlan', 'handoff', 'teleStrip'];
+
+        window.state = {
+            shiftMode: 'day',
+            rooms: []
+        };
+        let state = window.state;
+        let activeTab = 'board';
+        let boardFilter = 'all';
+        let isReorderMode = false;
+        let draggedRoomId = null;
+        let activeSheetRoomId = null;
+        let selectedNewTags = [];
+        let currentTheme = 'light';
+
+        function createDefaultTasks() {
+            return {
+                v1: false, a1: false,
+                v2: false, a2: false,
+                v3: false, a3: false,
+                edu: false, carePlan: false, handoff: false, teleStrip: false
+            };
+        }
+
+        function normalizeRoom(r) {
+            return {
+                id: r.id || ('room-' + Date.now() + Math.random()),
+                number: String(r.number || 'Room'),
+                tags: Array.isArray(r.tags) ? r.tags : [],
+                note: typeof r.note === 'string' ? r.note : '',
+                timerEnd: typeof r.timerEnd === 'number' ? r.timerEnd : null,
+                timerLabel: typeof r.timerLabel === 'string' ? r.timerLabel : '',
+                timerAlerted: Boolean(r.timerAlerted),
+                tasks: { ...createDefaultTasks(), ...(r.tasks || {}) }
+            };
+        }
+
+        window.applyRemoteState = function(data) {
+            state.shiftMode = data?.shiftMode === 'night' ? 'night' : 'day';
+            state.rooms = Array.isArray(data?.rooms) ? data.rooms.map(normalizeRoom) : [];
+            renderAll();
+            if (activeSheetRoomId) {
+                const stillExists = state.rooms.some(r => r.id === activeSheetRoomId);
+                if (stillExists) renderRoomSheet(activeSheetRoomId);
+                else closeRoomSheet();
+            }
+        };
+
+        window.loadDefaultStarterRooms = function() {
+            state.shiftMode = 'day';
+            state.rooms = [
+                {
+                    id: 'room-demo-1',
+                    number: '408-A',
+                    tags: ['tele', 'drip'],
+                    note: 'Heparin gtt • aPTT due 1300',
+                    timerEnd: null,
+                    timerLabel: '',
+                    timerAlerted: false,
+                    tasks: { v1: true, a1: true, v2: true, a2: false, v3: false, a3: false, edu: true, carePlan: false, handoff: false, teleStrip: true }
+                },
+                {
+                    id: 'room-demo-2',
+                    number: '412',
+                    tags: ['o2', 'fall'],
+                    note: '2L NC • Bed alarm ON',
+                    timerEnd: null,
+                    timerLabel: '',
+                    timerAlerted: false,
+                    tasks: { v1: true, a1: true, v2: false, a2: false, v3: false, a3: false, edu: false, carePlan: true, handoff: false, teleStrip: true }
+                }
+            ];
+            renderAll();
+        };
+
+        window.clearLocalMemoryState = function() {
+            state.shiftMode = 'day';
+            state.rooms = [];
+            renderAll();
+        };
+
+        function saveState(immediate = false) {
+            if (window.syncStateToFirebase) {
+                window.syncStateToFirebase(immediate);
+            }
+        }
+
+        /**
+         * 3. THEME & NAVIGATION
+         */
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            applyTheme(currentTheme);
+            haptic(10);
+        }
+
+        function applyTheme(mode) {
+            currentTheme = mode;
+            document.documentElement.setAttribute('data-theme', mode);
+            const icon = document.getElementById('theme-icon');
+            if (icon) {
+                icon.className = mode === 'dark' ? 'ph-bold ph-sun text-amber-400 text-base' : 'ph-bold ph-moon text-base';
+            }
+        }
+
+        function switchMainTab(tab) {
+            activeTab = tab;
+            const views = ['board', 'radar', 'consult'];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const nav = document.getElementById(`nav-${v}`);
+                if (!el || !nav) return;
+
+                if (v === tab) {
+                    el.classList.remove('hidden');
+                    nav.className = 'tap relative py-1.5 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-teal-600';
+                    const icon = nav.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('ph-bold');
+                        icon.classList.add('ph-fill');
+                    }
+                } else {
+                    el.classList.add('hidden');
+                    nav.className = 'tap relative py-1.5 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-sub';
+                    const icon = nav.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('ph-fill');
+                        icon.classList.add('ph-bold');
+                    }
+                }
+            });
+
+            if (tab === 'consult' && window.ensureAICredentialsLoaded) {
+                window.ensureAICredentialsLoaded();
+            }
+            if (tab === 'radar') {
+                renderRadar();
+            }
+            haptic(8);
+        }
+
+        function setBoardFilter(filter) {
+            boardFilter = filter;
+            if (isReorderMode && filter !== 'all') {
+                isReorderMode = false;
+                updateReorderButtonUI();
+            }
+            ['all', 'attention', 'complete'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (!btn) return;
+                btn.className = f === filter
+                    ? 'tap px-3 py-1.5 rounded-xl text-xs font-extrabold bg-teal-600 text-white'
+                    : 'tap px-3 py-1.5 rounded-xl text-xs font-extrabold surface-card border text-sub';
+            });
+            renderBoard();
+            haptic(8);
+        }
+
+        function updateReorderButtonUI() {
+            const btn = document.getElementById('reorder-mode-btn');
+            const label = document.getElementById('reorder-mode-label');
+            if (!btn || !label) return;
+            if (isReorderMode) {
+                btn.className = 'tap px-3 py-1.5 rounded-xl text-xs font-extrabold bg-amber-500 text-slate-950 border border-amber-400 flex items-center gap-1.5 shadow-xs';
+                label.textContent = 'Done';
+            } else {
+                btn.className = 'tap px-3 py-1.5 rounded-xl text-xs font-extrabold surface-card border text-sub flex items-center gap-1.5';
+                label.textContent = 'Reorder';
+            }
+        }
+
+        function toggleReorderMode() {
+            isReorderMode = !isReorderMode;
+            if (isReorderMode && boardFilter !== 'all') {
+                boardFilter = 'all';
+                ['all', 'attention', 'complete'].forEach(f => {
+                    const btn = document.getElementById(`filter-${f}`);
+                    if (!btn) return;
+                    btn.className = f === 'all'
+                        ? 'tap px-3 py-1.5 rounded-xl text-xs font-extrabold bg-teal-600 text-white'
+                        : 'tap px-3 py-1.5 rounded-xl text-xs font-extrabold surface-card border text-sub';
+                });
+            }
+            updateReorderButtonUI();
+            renderBoard();
+            haptic(10);
+            if (isReorderMode) showToast('Use arrows or drag cards to reorder');
+        }
+
+        function moveRoom(roomId, delta) {
+            const idx = state.rooms.findIndex(r => r.id === roomId);
+            if (idx === -1) return;
+            const targetIdx = idx + delta;
+            if (targetIdx < 0 || targetIdx >= state.rooms.length) return;
+
+            const [moved] = state.rooms.splice(idx, 1);
+            state.rooms.splice(targetIdx, 0, moved);
+            saveState(true);
+            renderBoard();
+            haptic(10);
+        }
+
+        function handleCardDragStart(e, roomId) {
+            draggedRoomId = roomId;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', roomId);
+            if (e.currentTarget) e.currentTarget.classList.add('card-dragging');
+        }
+
+        function handleCardDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleCardDrop(e, targetRoomId) {
+            e.preventDefault();
+            const sourceId = draggedRoomId || e.dataTransfer.getData('text/plain');
+            if (!sourceId || sourceId === targetRoomId) return;
+
+            const fromIdx = state.rooms.findIndex(r => r.id === sourceId);
+            const toIdx = state.rooms.findIndex(r => r.id === targetRoomId);
+            if (fromIdx === -1 || toIdx === -1) return;
+
+            const [moved] = state.rooms.splice(fromIdx, 1);
+            state.rooms.splice(toIdx, 0, moved);
+            draggedRoomId = null;
+            saveState(true);
+            renderBoard();
+            haptic(12);
+        }
+
+        function handleCardDragEnd(e) {
+            draggedRoomId = null;
+            if (e.currentTarget) e.currentTarget.classList.remove('card-dragging');
+        }
+
+        /**
+         * 4. CLOCK, Q4H WINDOW AWARENESS & TIMERS
+         */
+        function getActiveBlockIndex() {
+            const hr = new Date().getHours();
+            if (state.shiftMode === 'day') {
+                if (hr >= 7 && hr < 11) return 1;
+                if (hr >= 11 && hr < 15) return 2;
+                if (hr >= 15 && hr < 19) return 3;
+                if (hr >= 19) return 4; // Shift ended
+            } else {
+                if (hr >= 19 && hr < 23) return 1;
+                if (hr >= 23 || hr < 3) return 2;
+                if (hr >= 3 && hr < 7) return 3;
+                if (hr >= 7 && hr < 19) return 4; // Outside night shift
+            }
+            return 0;
+        }
+
+        function isBlockOverdue(blockNum) {
+            const active = getActiveBlockIndex();
+            // Only flag overdue if we are actively inside the shift (blocks 2 or 3)
+            if (active === 2 && blockNum === 1) return true;
+            if (active === 3 && (blockNum === 1 || blockNum === 2)) return true;
+            return false;
+        }
+
+        function updateHudClock() {
+            const el = document.getElementById('hud-clock');
+            const pill = document.getElementById('shift-window-pill');
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            if (el) el.textContent = `${hh}:${mm}`;
+
+            if (pill) {
+                const active = getActiveBlockIndex();
+                const times = SHIFT_TIMES[state.shiftMode];
+                if (active >= 1 && active <= 3) {
+                    pill.textContent = `Q4H Window: ${times[active - 1]}`;
+                } else {
+                    pill.textContent = state.shiftMode === 'day' ? 'Day Shift (0700–1900)' : 'Night Shift (1900–0700)';
+                }
+            }
+        }
+
+        function formatCountdown(msRemaining) {
+            if (msRemaining <= 0) return 'DUE';
+            const totalSecs = Math.ceil(msRemaining / 1000);
+            const hrs = Math.floor(totalSecs / 3600);
+            const mins = Math.floor((totalSecs % 3600) / 60);
+            const secs = totalSecs % 60;
+            const pad = n => String(n).padStart(2, '0');
+            return hrs > 0 ? `${hrs}:${pad(mins)}:${pad(secs)}` : `${mins}:${pad(secs)}`;
+        }
+
+        function playTimerChime() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                [880, 1174.66].forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime + i * 0.16);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.16 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + i * 0.16);
+                    osc.stop(ctx.currentTime + i * 0.16 + 0.26);
+                });
+            } catch (e) {}
+        }
+
+        function checkTimersTick() {
+            updateHudClock();
+            const now = Date.now();
+            let needsFullRender = false;
+            let stateChanged = false;
+
+            state.rooms.forEach(room => {
+                if (!room.timerEnd) return;
+                const remaining = room.timerEnd - now;
+                const textStr = formatCountdown(remaining);
+
+                document.querySelectorAll(`[data-timer-text="${room.id}"]`).forEach(el => {
+                    if (el.textContent !== textStr) el.textContent = textStr;
+                });
+
+                if (remaining <= 0 && !room.timerAlerted) {
+                    room.timerAlerted = true;
+                    needsFullRender = true;
+                    stateChanged = true;
+                    haptic([40, 60, 40, 60, 40]);
+                    playTimerChime();
+                    showToast(`Timer Due: Room ${room.number} (${room.timerLabel || 'Check'})`);
+                }
+            });
+
+            if (stateChanged) saveState(true);
+            if (needsFullRender) {
+                renderAll();
+                if (activeSheetRoomId) renderRoomSheet(activeSheetRoomId);
+            }
+        }
+
+        function toggleShiftMode() {
+            state.shiftMode = state.shiftMode === 'day' ? 'night' : 'day';
+            // Automatically pair low-glare dark mode with Night shift if desired
+            applyTheme(state.shiftMode === 'night' ? 'dark' : 'light');
+            saveState();
+            renderAll();
+            if (activeSheetRoomId) renderRoomSheet(activeSheetRoomId);
+            haptic(12);
+            showToast(`Switched to ${state.shiftMode === 'day' ? 'Day (0700)' : 'Night (1900)'}`);
+        }
+
+        /**
+         * 5. TASK & ROOM MUTATIONS
+         */
+        function getRoomProgress(room) {
+            const completed = CORE_TASK_KEYS.filter(k => Boolean(room.tasks[k])).length;
+            const total = CORE_TASK_KEYS.length;
+            return { completed, total, isComplete: completed === total };
+        }
+
+        function getRoomUrgencyCount(room) {
+            let count = 0;
+            const now = Date.now();
+            if (room.timerEnd && room.timerEnd <= now) count++;
+
+            const active = getActiveBlockIndex();
+            [1, 2, 3].forEach(b => {
+                const overdue = isBlockOverdue(b);
+                const current = active === b;
+                if (overdue || current) {
+                    if (!room.tasks['v' + b]) count++;
+                    if (!room.tasks['a' + b]) count++;
+                }
+            });
+            return count;
+        }
+
+        function toggleSingleTask(roomId, taskKey) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const wasComplete = getRoomProgress(room).isComplete;
+            room.tasks[taskKey] = !room.tasks[taskKey];
+            const isNowComplete = getRoomProgress(room).isComplete;
+
+            saveState();
+            renderAll();
+            if (activeSheetRoomId === roomId) renderRoomSheet(roomId);
+
+            if (isNowComplete && !wasComplete) {
+                haptic([25, 40, 25]);
+                showToast(`Room ${room.number} Shift Complete`);
+            } else {
+                haptic(10);
+            }
+        }
+
+        function toggleTimeBlockBoth(roomId, blockNum) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const vKey = 'v' + blockNum;
+            const aKey = 'a' + blockNum;
+            const bothDone = room.tasks[vKey] && room.tasks[aKey];
+            const wasComplete = getRoomProgress(room).isComplete;
+
+            room.tasks[vKey] = !bothDone;
+            room.tasks[aKey] = !bothDone;
+
+            const isNowComplete = getRoomProgress(room).isComplete;
+            saveState();
+            renderAll();
+
+            if (isNowComplete && !wasComplete) {
+                haptic([25, 40, 25]);
+                showToast(`Room ${room.number} Shift Complete`);
+            } else {
+                haptic(10);
+            }
+        }
+
+        function toggleRoomTag(roomId, tagId) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            if (room.tags.includes(tagId)) {
+                room.tags = room.tags.filter(t => t !== tagId);
+            } else {
+                room.tags.push(tagId);
+            }
+            saveState();
+            renderAll();
+            if (activeSheetRoomId === roomId) renderRoomSheet(roomId);
+            haptic(10);
+        }
+
+        function setRoomTimer(roomId, minutes, label) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            if (minutes === null) {
+                room.timerEnd = null;
+                room.timerLabel = '';
+                room.timerAlerted = false;
+                showToast('Timer cleared');
+            } else {
+                room.timerEnd = Date.now() + minutes * 60000;
+                room.timerLabel = label;
+                room.timerAlerted = false;
+                showToast(`${label} timer started for Rm ${room.number}`);
+            }
+            saveState();
+            renderAll();
+            if (activeSheetRoomId === roomId) renderRoomSheet(roomId);
+            haptic(12);
+        }
+
+        function handleCustomTimer(e, roomId) {
+            e.preventDefault();
+            const input = document.getElementById('custom-timer-mins');
+            if (!input) return;
+            const mins = parseInt(input.value, 10);
+            if (!mins || mins < 1 || mins > 720) {
+                showToast('Enter 1–720 minutes');
+                return;
+            }
+            setRoomTimer(roomId, mins, `${mins}m`);
+        }
+
+        function updateRoomNote(roomId, text) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+            room.note = text.slice(0, 90);
+            saveState(false);
+            renderBoard();
+        }
+
+        function appendQuickNote(roomId, snippet) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+            const current = room.note.trim();
+            if (!current) {
+                room.note = snippet;
+            } else if (!current.toLowerCase().includes(snippet.toLowerCase())) {
+                room.note = `${current} • ${snippet}`.slice(0, 90);
+            }
+            saveState(false);
+            renderAll();
+            renderRoomSheet(roomId);
+            haptic(8);
+        }
+
+        /**
+         * 6. RENDERING: BOARD, HEADER & DUE-NOW RADAR
+         */
+        function renderAll() {
+            renderHeaderMetrics();
+            renderBoard();
+            renderRadar();
+        }
+
+        function renderHeaderMetrics() {
+            const isDay = state.shiftMode === 'day';
+            document.getElementById('shift-mode-label').textContent = isDay ? 'Day 0700' : 'Night 1900';
+            document.getElementById('shift-mode-short').textContent = isDay ? '0700' : '1900';
+            document.getElementById('shift-mode-icon').className = isDay
+                ? 'ph-fill ph-sun text-amber-500 text-sm'
+                : 'ph-fill ph-moon-stars text-indigo-400 text-sm';
+
+            let totalCompleted = 0;
+            let totalUrgent = 0;
+            const totalPossible = state.rooms.length * CORE_TASK_KEYS.length;
+
+            state.rooms.forEach(r => {
+                totalCompleted += getRoomProgress(r).completed;
+                totalUrgent += getRoomUrgencyCount(r);
+            });
+
+            const pct = totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0;
+            document.getElementById('shift-pct-label').textContent = `${pct}%`;
+            document.getElementById('shift-summary').textContent = `${state.rooms.length} ${state.rooms.length === 1 ? 'room' : 'rooms'}`;
+            document.getElementById('global-progress-bar').style.width = `${pct}%`;
+
+            // Update bottom dock Radar badge
+            const badge = document.getElementById('nav-radar-badge');
+            if (badge) {
+                if (totalUrgent > 0) {
+                    badge.textContent = totalUrgent > 99 ? '99+' : String(totalUrgent);
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        }
+
+        function renderBoard() {
+            const container = document.getElementById('rooms-container');
+            const emptyState = document.getElementById('empty-state');
+            const toolbar = document.getElementById('board-toolbar');
+
+            if (state.rooms.length === 0) {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+                toolbar.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.classList.remove('hidden');
+            toolbar.classList.remove('hidden');
+
+            const filteredRooms = state.rooms.filter(r => {
+                const prog = getRoomProgress(r);
+                if (boardFilter === 'complete') return prog.isComplete;
+                if (boardFilter === 'attention') return !prog.isComplete;
+                return true;
+            });
+
+            if (filteredRooms.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full py-12 text-center surface-card border rounded-3xl p-6">
+                        <i class="ph-duotone ph-check-circle text-4xl text-emerald-500 mb-2"></i>
+                        <p class="text-sm font-extrabold text-main">No rooms match this filter</p>
+                        <button onclick="setBoardFilter('all')" class="tap mt-3 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-extrabold">Show All Rooms</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const now = Date.now();
+            const times = SHIFT_TIMES[state.shiftMode];
+            const activeBlock = getActiveBlockIndex();
+
+            container.innerHTML = filteredRooms.map((room, idx) => {
+                const prog = getRoomProgress(room);
+                const isDone = prog.isComplete;
+                const hasTimer = Boolean(room.timerEnd);
+                const isTimerDue = hasTimer && room.timerEnd <= now;
+                const timerText = hasTimer ? formatCountdown(room.timerEnd - now) : '';
+
+                // Check if any past Q4H block is missing VS or AX
+                const hasOverdue = [1, 2, 3].some(b => isBlockOverdue(b) && (!room.tasks['v' + b] || !room.tasks['a' + b]));
+
+                const cardSurfaceClass = isDone
+                    ? 'card-complete border-2'
+                    : isTimerDue
+                        ? 'surface-card border-2 border-amber-500 ring-2 ring-amber-500/30'
+                        : hasOverdue
+                            ? 'surface-card border-2 border-rose-500/50'
+                            : 'surface-card border-2 border-[var(--border-subtle)]';
+
+                const tagsHTML = room.tags.map(tId => {
+                    const def = TAG_DEFS.find(d => d.id === tId);
+                    if (!def) return '';
+                    const tagClass = isDone
+                        ? 'bg-white/15 text-white border-white/25'
+                        : def.color;
+                    return `<span class="text-[9px] font-extrabold tracking-wide px-1.5 py-0.5 rounded-md border ${tagClass}">${def.label}</span>`;
+                }).join('');
+
+                const dragAttrs = isReorderMode
+                    ? `draggable="true" ondragstart="handleCardDragStart(event, '${room.id}')" ondragover="handleCardDragOver(event)" ondrop="handleCardDrop(event, '${room.id}')" ondragend="handleCardDragEnd(event)"`
+                    : '';
+
+                const reorderBarHTML = isReorderMode ? `
+                    <div class="flex items-center justify-between gap-2 pb-2 mb-1 border-b ${isDone ? 'border-white/20' : 'border-[var(--border-subtle)]'}">
+                        <div class="flex items-center gap-1.5 text-[11px] font-extrabold ${isDone ? 'text-emerald-100' : 'text-amber-600'} cursor-grab active:cursor-grabbing">
+                            <i class="ph-bold ph-dots-six-vertical text-base"></i>
+                            <span>Position #${idx + 1}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="moveRoom('${room.id}', -1)" ${idx === 0 ? 'disabled' : ''} aria-label="Move room earlier" class="tap px-2.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1 disabled:opacity-30 ${
+                                isDone ? 'bg-white/20 text-white border border-white/25' : 'surface-subtle border text-main'
+                            }">
+                                <i class="ph-bold ph-arrow-up"></i>
+                                <span>Up</span>
+                            </button>
+                            <button type="button" onclick="moveRoom('${room.id}', 1)" ${idx === filteredRooms.length - 1 ? 'disabled' : ''} aria-label="Move room later" class="tap px-2.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1 disabled:opacity-30 ${
+                                isDone ? 'bg-white/20 text-white border border-white/25' : 'surface-subtle border text-main'
+                            }">
+                                <i class="ph-bold ph-arrow-down"></i>
+                                <span>Down</span>
+                            </button>
+                        </div>
+                    </div>
+                ` : '';
+
+                return `
+                <article ${dragAttrs} class="${cardSurfaceClass} rounded-3xl p-4 flex flex-col gap-3 transition-all">
+                    ${reorderBarHTML}
+
+                    <!-- CARD HEADER: Room #, Status, Flags & Quick Edit -->
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="openRoomSheet('${room.id}')" class="tap font-mono-num text-2xl font-extrabold tracking-tight leading-none ${isDone ? 'text-white hover:text-emerald-100' : 'text-main hover:text-teal-600'}">
+                                    ${escapeHTML(room.number)}
+                                </button>
+                                ${isDone ? `
+                                    <span class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
+                                        <i class="ph-fill ph-check-circle"></i> Shift Done
+                                    </span>
+                                ` : hasOverdue ? `
+                                    <span class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/12 text-rose-500 border border-rose-500/25">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-soft-pulse"></span> Overdue
+                                    </span>
+                                ` : `
+                                    <span class="font-mono-num text-[11px] font-extrabold px-2 py-0.5 rounded-full surface-subtle border text-sub">
+                                        ${prog.completed}/${prog.total}
+                                    </span>
+                                `}
+                            </div>
+                            ${tagsHTML ? `<div class="flex flex-wrap gap-1 mt-1.5">${tagsHTML}</div>` : ''}
+                        </div>
+
+                        <!-- Right Actions: Active Timer Pill & Room Settings -->
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${hasTimer ? `
+                                <button type="button" onclick="setRoomTimer('${room.id}', null, '')" title="Tap to clear timer" class="tap font-mono-num text-[11px] font-extrabold px-2.5 py-1.5 rounded-xl flex items-center gap-1 shadow-xs ${
+                                    isTimerDue ? 'bg-amber-400 text-slate-950 animate-pulse' : isDone ? 'bg-black/25 text-white border border-white/20' : 'bg-slate-900 text-white'
+                                }">
+                                    <i class="ph-bold ph-timer ${isTimerDue ? 'text-slate-950' : 'text-teal-300'}"></i>
+                                    <span data-timer-text="${room.id}">${timerText}</span>
+                                    ${isTimerDue ? '<i class="ph-bold ph-x ml-0.5"></i>' : ''}
+                                </button>
+                            ` : `
+                                <button type="button" onclick="openRoomSheet('${room.id}')" title="Set Timer" class="tap h-8 px-2.5 rounded-xl border flex items-center gap-1 text-[11px] font-bold ${
+                                    isDone ? 'bg-white/15 border-white/25 text-white hover:bg-white/25' : 'surface-subtle text-sub hover:text-teal-600'
+                                }">
+                                    <i class="ph-bold ph-timer text-sm"></i>
+                                    <span>Timer</span>
+                                </button>
+                            `}
+                            <button type="button" onclick="openRoomSheet('${room.id}')" aria-label="Room Details" class="tap w-8 h-8 rounded-xl border flex items-center justify-center ${
+                                isDone ? 'bg-white/15 border-white/25 text-white hover:bg-white/25' : 'surface-subtle text-sub hover:text-main'
+                            }">
+                                <i class="ph-bold ph-sliders-horizontal text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SECTION 1: Q4H VITALS & ASSESSMENTS (DIRECT ONE-TAP MATRIX) -->
+                    <div class="grid grid-cols-3 gap-2">
+                        ${[1, 2, 3].map(blockNum => {
+                            const timeLabel = times[blockNum - 1];
+                            const vDone = room.tasks['v' + blockNum];
+                            const aDone = room.tasks['a' + blockNum];
+                            const bothDone = vDone && aDone;
+                            const isCurrent = activeBlock === blockNum;
+                            const overdue = isBlockOverdue(blockNum) && !bothDone;
+
+                            const colStyle = isDone
+                                ? 'bg-black/15 border-white/20'
+                                : bothDone
+                                    ? 'bg-emerald-500/8 border-emerald-500/30'
+                                    : overdue
+                                        ? 'bg-rose-500/8 border-rose-500/35'
+                                        : isCurrent
+                                            ? 'bg-teal-500/8 border-teal-500/40'
+                                            : 'surface-subtle border';
+
+                            const headerColor = isDone
+                                ? 'text-emerald-100'
+                                : bothDone
+                                    ? 'text-emerald-600'
+                                    : overdue
+                                        ? 'text-rose-500'
+                                        : isCurrent
+                                            ? 'text-teal-600'
+                                            : 'text-sub';
+
+                            const btnDoneClass = isDone
+                                ? 'bg-white/25 border-white/40 text-white'
+                                : 'bg-emerald-600 border-emerald-600 text-white shadow-2xs';
+
+                            const btnIdleClass = 'surface-card border text-sub hover:border-teal-500';
+
+                            return `
+                            <div class="rounded-2xl border p-2 flex flex-col gap-1.5 ${colStyle}">
+                                <button type="button" onclick="toggleTimeBlockBoth('${room.id}', ${blockNum})" title="Tap to toggle both Vitals & Assessment" class="tap flex items-center justify-between px-1">
+                                    <span class="font-mono-num text-[11px] font-extrabold ${headerColor}">${timeLabel}</span>
+                                    ${bothDone
+                                        ? `<i class="ph-fill ph-check-circle ${isDone ? 'text-white' : 'text-emerald-500'} text-xs"></i>`
+                                        : overdue
+                                            ? '<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>'
+                                            : isCurrent
+                                                ? '<span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>'
+                                                : '<span class="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>'}
+                                </button>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button type="button" onclick="toggleSingleTask('${room.id}', 'v${blockNum}')" class="tap py-2 rounded-xl text-[11px] font-extrabold border flex items-center justify-center ${
+                                        vDone ? btnDoneClass : btnIdleClass
+                                    }">VS</button>
+                                    <button type="button" onclick="toggleSingleTask('${room.id}', 'a${blockNum}')" class="tap py-2 rounded-xl text-[11px] font-extrabold border flex items-center justify-center ${
+                                        aDone ? btnDoneClass : btnIdleClass
+                                    }">AX</button>
+                                </div>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <!-- SECTION 2: SHIFT REQUIREMENTS (EDU, CARE PLAN, TELE STRIP, HANDOFF) -->
+                    <div class="grid grid-cols-4 gap-1.5">
+                        ${renderMilestonePill(room.id, 'edu', 'Edu', room.tasks.edu, isDone)}
+                        ${renderMilestonePill(room.id, 'carePlan', 'Plan', room.tasks.carePlan, isDone)}
+                        ${renderMilestonePill(room.id, 'teleStrip', 'Strip', room.tasks.teleStrip, isDone)}
+                        ${renderMilestonePill(room.id, 'handoff', 'Handoff', room.tasks.handoff, isDone)}
+                    </div>
+
+                    <!-- SECTION 3: QUICK CLINICAL NOTE BAR -->
+                    <button type="button" onclick="openRoomSheet('${room.id}')" class="tap w-full text-left px-3 py-2 rounded-xl border flex items-center gap-2 text-xs ${
+                        isDone ? 'bg-black/15 border-white/20 text-white' : 'surface-subtle'
+                    }">
+                        <i class="ph-bold ph-note-pencil ${isDone ? 'text-emerald-200' : 'text-teal-600'} shrink-0"></i>
+                        <span class="truncate ${isDone ? 'text-white font-semibold' : room.note ? 'text-main font-semibold' : 'text-dim font-medium'}">
+                            ${room.note ? escapeHTML(room.note) : 'Add quick note (drip, labs, IV site)...'}
+                        </span>
+                    </button>
+                </article>
+                `;
+            }).join('');
+        }
+
+        function renderMilestonePill(roomId, key, label, isDone, cardComplete = false) {
+            const pillStyle = cardComplete
+                ? 'bg-white/20 border-white/35 text-white'
+                : isDone
+                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-2xs'
+                    : 'surface-subtle border text-sub hover:border-teal-500';
+
+            return `
+            <button type="button" onclick="toggleSingleTask('${roomId}', '${key}')" class="tap py-2 px-1.5 rounded-xl border text-[11px] font-extrabold flex items-center justify-center gap-1 ${pillStyle}">
+                <i class="ph-bold ${isDone ? 'ph-check text-xs' : 'ph-circle text-[10px] opacity-50'}"></i>
+                <span class="truncate">${label}</span>
+            </button>
+            `;
+        }
+
+        function renderRadar() {
+            const container = document.getElementById('radar-content');
+            const countPill = document.getElementById('radar-count-pill');
+            if (!container) return;
+
+            const now = Date.now();
+            const times = SHIFT_TIMES[state.shiftMode];
+            const activeBlock = getActiveBlockIndex();
+
+            const dueTimers = [];
+            const overdueItems = [];
+            const currentRoundItems = [];
+            const pendingMilestones = [];
+
+            state.rooms.forEach(room => {
+                if (room.timerEnd) {
+                    dueTimers.push({ room, isDue: room.timerEnd <= now, remaining: room.timerEnd - now });
+                }
+                [1, 2, 3].forEach(b => {
+                    const overdue = isBlockOverdue(b);
+                    const isCurr = activeBlock === b;
+                    const tLabel = times[b - 1];
+                    if (overdue) {
+                        if (!room.tasks['v' + b]) overdueItems.push({ room, key: 'v' + b, label: `${tLabel} Vitals` });
+                        if (!room.tasks['a' + b]) overdueItems.push({ room, key: 'a' + b, label: `${tLabel} Assessment` });
+                    } else if (isCurr) {
+                        if (!room.tasks['v' + b]) currentRoundItems.push({ room, key: 'v' + b, label: `${tLabel} Vitals` });
+                        if (!room.tasks['a' + b]) currentRoundItems.push({ room, key: 'a' + b, label: `${tLabel} Assessment` });
+                    }
+                });
+
+                if (!room.tasks.edu) pendingMilestones.push({ room, key: 'edu', label: 'Patient Education' });
+                if (!room.tasks.carePlan) pendingMilestones.push({ room, key: 'carePlan', label: 'Care Plan Update' });
+                if (!room.tasks.teleStrip) pendingMilestones.push({ room, key: 'teleStrip', label: 'Telemetry Strip' });
+                if (!room.tasks.handoff) pendingMilestones.push({ room, key: 'handoff', label: 'Shift Handoff' });
+            });
+
+            const urgentTotal = dueTimers.filter(t => t.isDue).length + overdueItems.length + currentRoundItems.length;
+            if (countPill) {
+                countPill.textContent = `${urgentTotal} due`;
+                countPill.className = urgentTotal > 0
+                    ? 'font-mono-num text-xs font-extrabold px-2.5 py-1 rounded-xl bg-rose-500/12 text-rose-500 border border-rose-500/25'
+                    : 'font-mono-num text-xs font-extrabold px-2.5 py-1 rounded-xl bg-emerald-500/12 text-emerald-600 border border-emerald-500/25';
+            }
+
+            if (state.rooms.length === 0) {
+                container.innerHTML = `
+                    <div class="surface-card border rounded-3xl p-8 text-center">
+                        <p class="text-sm font-extrabold text-main">No rooms assigned yet</p>
+                        <p class="text-xs text-sub mt-1">Add rooms on the Board to populate your Rounding Radar.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            // 1. Active & Due Timers
+            if (dueTimers.length > 0) {
+                html += `
+                <div class="space-y-2">
+                    <h3 class="text-[11px] font-extrabold uppercase tracking-widest text-amber-500 flex items-center gap-1.5">
+                        <i class="ph-fill ph-timer"></i> Active Timers (${dueTimers.length})
+                    </h3>
+                    <div class="space-y-2">
+                        ${dueTimers.map(t => `
+                            <div class="surface-card border ${t.isDue ? 'border-amber-500 ring-1 ring-amber-500/30' : ''} rounded-2xl p-3 flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="font-mono-num text-base font-extrabold text-main">Rm ${escapeHTML(t.room.number)}</span>
+                                    <span class="text-xs font-bold text-sub">${escapeHTML(t.room.timerLabel || 'Reminder')}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span data-timer-text="${t.room.id}" class="font-mono-num text-xs font-extrabold px-2.5 py-1 rounded-lg ${t.isDue ? 'bg-amber-500 text-slate-950 animate-pulse' : 'bg-slate-900 text-white'}">${formatCountdown(t.remaining)}</span>
+                                    <button onclick="setRoomTimer('${t.room.id}', null, '')" class="tap px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-extrabold">Done</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                `;
+            }
+
+            // 2. Overdue Q4H Tasks
+            if (overdueItems.length > 0) {
+                html += `
+                <div class="space-y-2">
+                    <h3 class="text-[11px] font-extrabold uppercase tracking-widest text-rose-500 flex items-center gap-1.5">
+                        <i class="ph-fill ph-warning-circle"></i> Overdue Q4H (${overdueItems.length})
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${overdueItems.map(item => `
+                            <button onclick="toggleSingleTask('${item.room.id}', '${item.key}')" class="tap surface-card border border-rose-500/40 rounded-2xl p-3 flex items-center justify-between text-left">
+                                <div>
+                                    <span class="font-mono-num text-sm font-extrabold text-main">Rm ${escapeHTML(item.room.number)}</span>
+                                    <p class="text-xs font-bold text-rose-500">${item.label}</p>
+                                </div>
+                                <span class="px-3 py-1.5 rounded-xl bg-rose-500/12 text-rose-500 text-xs font-extrabold">Mark Done</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                `;
+            }
+
+            // 3. Current Q4H Round
+            if (currentRoundItems.length > 0) {
+                html += `
+                <div class="space-y-2">
+                    <h3 class="text-[11px] font-extrabold uppercase tracking-widest text-teal-600 flex items-center gap-1.5">
+                        <i class="ph-fill ph-clock"></i> Current Q4H Round (${currentRoundItems.length})
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${currentRoundItems.map(item => `
+                            <button onclick="toggleSingleTask('${item.room.id}', '${item.key}')" class="tap surface-card border border-teal-500/35 rounded-2xl p-3 flex items-center justify-between text-left">
+                                <div>
+                                    <span class="font-mono-num text-sm font-extrabold text-main">Rm ${escapeHTML(item.room.number)}</span>
+                                    <p class="text-xs font-bold text-teal-600">${item.label}</p>
+                                </div>
+                                <span class="px-3 py-1.5 rounded-xl bg-teal-500/12 text-teal-600 text-xs font-extrabold">Check</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                `;
+            }
+
+            // 4. All Caught Up Banner (when no urgent items)
+            if (urgentTotal === 0) {
+                html += `
+                <div class="surface-card border border-emerald-500/40 rounded-3xl p-6 text-center">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto mb-2.5">
+                        <i class="ph-fill ph-check-circle text-3xl"></i>
+                    </div>
+                    <h3 class="text-sm font-extrabold text-main">All Caught Up on Q4H Rounds!</h3>
+                    <p class="text-xs text-sub mt-1">No overdue vitals, assessments, or due timers right now.</p>
+                </div>
+                `;
+            }
+
+            // 5. Remaining Shift Charting Milestones
+            if (pendingMilestones.length > 0) {
+                html += `
+                <div class="space-y-2 pt-2">
+                    <h3 class="text-[11px] font-extrabold uppercase tracking-widest text-sub flex items-center gap-1.5">
+                        <i class="ph-bold ph-clipboard-text"></i> Remaining Shift Charting (${pendingMilestones.length})
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${pendingMilestones.map(item => `
+                            <button onclick="toggleSingleTask('${item.room.id}', '${item.key}')" class="tap surface-card border rounded-2xl p-3 flex items-center justify-between text-left">
+                                <div>
+                                    <span class="font-mono-num text-sm font-extrabold text-main">Rm ${escapeHTML(item.room.number)}</span>
+                                    <p class="text-xs font-semibold text-sub">${item.label}</p>
+                                </div>
+                                <i class="ph-bold ph-circle text-lg text-dim"></i>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        /**
+         * 7. ROOM DETAIL DRAWER (NOTES, FLAGS, TIMERS & FULL CHECKLIST)
+         */
+        function openRoomSheet(roomId) {
+            activeSheetRoomId = roomId;
+            renderRoomSheet(roomId);
+            document.getElementById('room-sheet-modal').classList.remove('hidden');
+            haptic(10);
+        }
+
+        function closeRoomSheet() {
+            document.getElementById('room-sheet-modal').classList.add('hidden');
+            activeSheetRoomId = null;
+        }
+
+        function renderRoomSheet(roomId) {
+            const room = state.rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const prog = getRoomProgress(room);
+            document.getElementById('sheet-room-title').textContent = room.number;
+
+            const badge = document.getElementById('sheet-badge');
+            const status = document.getElementById('sheet-room-status');
+
+            if (prog.isComplete) {
+                badge.className = 'w-11 h-11 rounded-2xl bg-emerald-600 text-white font-extrabold flex items-center justify-center text-xl shadow-sm';
+                badge.innerHTML = '<i class="ph-fill ph-check"></i>';
+                status.textContent = `All ${prog.total} shift requirements complete`;
+                status.className = 'text-xs font-extrabold text-emerald-500 mt-1';
+            } else {
+                badge.className = 'font-mono-num w-11 h-11 rounded-2xl bg-teal-500/12 border border-teal-500/25 text-teal-600 font-extrabold flex items-center justify-center text-xs';
+                badge.textContent = `${prog.completed}/${prog.total}`;
+                status.textContent = `${prog.total - prog.completed} task${prog.total - prog.completed === 1 ? '' : 's'} remaining`;
+                status.className = 'text-xs text-sub mt-1 font-medium';
+            }
+
+            const tagsHTML = TAG_DEFS.map(t => {
+                const active = room.tags.includes(t.id);
+                return `
+                <button type="button" onclick="toggleRoomTag('${room.id}', '${t.id}')" class="tap px-3 py-1.5 rounded-xl border text-xs font-extrabold ${
+                    active ? t.color : 'surface-subtle text-dim'
+                }">
+                    ${active ? '✓ ' : ''}${t.label}
+                </button>
+                `;
+            }).join('');
+
+            const quickChipsHTML = QUICK_NOTE_CHIPS.map(chip => `
+                <button type="button" onclick="appendQuickNote('${room.id}', '${chip}')" class="tap shrink-0 px-2.5 py-1 rounded-lg surface-subtle border text-[10px] font-bold text-sub hover:text-teal-600">+ ${chip}</button>
+            `).join('');
+
+            const hasTimer = Boolean(room.timerEnd);
+            const timerText = hasTimer ? formatCountdown(room.timerEnd - Date.now()) : '';
+
+            document.getElementById('sheet-body').innerHTML = `
+                <!-- Quick Note + Snippets -->
+                <div class="space-y-2">
+                    <label class="block text-[10px] font-extrabold uppercase tracking-widest text-dim">Clinical Brain Note (Zero PHI)</label>
+                    <input type="text" value="${escapeHTML(room.note)}" oninput="updateRoomNote('${room.id}', this.value)" maxlength="90"
+                        placeholder="e.g. Heparin gtt • aPTT 1400 • 20G R AC"
+                        class="w-full text-base font-semibold px-3.5 py-2.5 rounded-2xl surface-subtle border text-main focus:border-teal-500 outline-none">
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">${quickChipsHTML}</div>
+                </div>
+
+                <!-- Acuity & Precautions -->
+                <div>
+                    <span class="block text-[10px] font-extrabold uppercase tracking-widest text-dim mb-2">Acuity &amp; Precaution Badges</span>
+                    <div class="flex flex-wrap gap-1.5">${tagsHTML}</div>
+                </div>
+
+                <!-- Countdown Timer -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest text-dim">Countdown Reminder</span>
+                        ${hasTimer ? `<span class="font-mono-num text-[11px] font-extrabold ${room.timerEnd <= Date.now() ? 'text-rose-500 animate-pulse' : 'text-amber-500'}">${escapeHTML(room.timerLabel)} • <span data-timer-text="${room.id}">${timerText}</span></span>` : ''}
+                    </div>
+                    <div class="grid grid-cols-5 gap-1.5 mb-2">
+                        <button type="button" onclick="setRoomTimer('${room.id}', 15, '15m')" class="tap py-2.5 rounded-xl surface-subtle border text-main font-extrabold text-xs">+15m</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 30, '30m')" class="tap py-2.5 rounded-xl surface-subtle border text-main font-extrabold text-xs">+30m</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 60, '1h')" class="tap py-2.5 rounded-xl surface-subtle border text-main font-extrabold text-xs">+1h</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 120, '2h')" class="tap py-2.5 rounded-xl surface-subtle border text-main font-extrabold text-xs">+2h</button>
+                        <button type="button" onclick="setRoomTimer('${room.id}', 240, 'Q4h')" class="tap py-2.5 rounded-xl surface-subtle border text-main font-extrabold text-xs">+4h</button>
+                    </div>
+                    <form onsubmit="handleCustomTimer(event, '${room.id}')" class="flex gap-1.5">
+                        <input type="number" id="custom-timer-mins" min="1" max="720" inputmode="numeric" placeholder="Custom mins (e.g. 45)"
+                            class="flex-1 text-base font-semibold px-3.5 py-2 rounded-xl surface-subtle border text-main focus:border-teal-500 outline-none">
+                        <button type="submit" class="tap px-4 py-2 rounded-xl bg-teal-600 text-white font-extrabold text-xs">Start</button>
+                        ${hasTimer ? `<button type="button" onclick="setRoomTimer('${room.id}', null, '')" class="tap px-3 py-2 rounded-xl bg-rose-500/12 text-rose-500 border border-rose-500/25 font-extrabold text-xs">Clear</button>` : ''}
+                    </form>
+                </div>
+
+                <!-- Shift Requirements Full List -->
+                <div class="space-y-1.5">
+                    <span class="block text-[10px] font-extrabold uppercase tracking-widest text-dim">Shift Charting Milestones</span>
+                    ${renderSheetCheckRow(room.id, 'edu', 'Patient / Family Education Charted', room.tasks.edu)}
+                    ${renderSheetCheckRow(room.id, 'carePlan', 'Care Plan Reviewed & Updated', room.tasks.carePlan)}
+                    ${renderSheetCheckRow(room.id, 'teleStrip', 'Telemetry Rhythm Strip Documented', room.tasks.teleStrip)}
+                    ${renderSheetCheckRow(room.id, 'handoff', 'Shift Handoff / SBAR Ready', room.tasks.handoff)}
+                </div>
+            `;
+
+            document.getElementById('sheet-discharge-btn').onclick = () => {
+                state.rooms = state.rooms.filter(r => r.id !== roomId);
+                saveState();
+                renderAll();
+                closeRoomSheet();
+                haptic(15);
+                showToast(`Room ${room.number} cleared`);
+            };
+        }
+
+        function renderSheetCheckRow(roomId, key, label, isDone) {
+            return `
+            <button type="button" onclick="toggleSingleTask('${roomId}', '${key}')" class="tap w-full py-3 px-4 rounded-2xl border flex items-center justify-between font-extrabold text-xs ${
+                isDone ? 'bg-emerald-600 border-emerald-600 text-white' : 'surface-subtle text-main'
+            }">
+                <span>${label}</span>
+                <i class="ph-fill ${isDone ? 'ph-check-circle text-lg' : 'ph-circle text-dim text-lg'}"></i>
+            </button>
+            `;
+        }
+
+        /**
+         * 8. ADD ROOM KEYPAD & RESET MODALS
+         */
+        let keypadDigits = '';
+        let keypadBedSuffix = '';
+
+        function updateKeypadDisplay() {
+            const display = document.getElementById('room-keypad-display');
+            const submitBtn = document.getElementById('add-room-submit-btn');
+            const fullRoom = keypadDigits ? `${keypadDigits}${keypadBedSuffix}` : '';
+            if (display) {
+                display.textContent = fullRoom || '---';
+                display.className = fullRoom
+                    ? 'font-mono-num text-3xl font-extrabold tracking-wider text-teal-400 min-h-[36px] flex items-center'
+                    : 'font-mono-num text-3xl font-extrabold tracking-wider text-slate-600 min-h-[36px] flex items-center';
+            }
+            if (submitBtn) submitBtn.disabled = !keypadDigits;
+        }
+
+        function pressRoomDigit(char) {
+            if (keypadDigits.length >= 8) return;
+            keypadDigits += char;
+            updateKeypadDisplay();
+            haptic(10);
+        }
+
+        function backspaceRoomDigit() {
+            if (!keypadDigits) return;
+            keypadDigits = keypadDigits.slice(0, -1);
+            updateKeypadDisplay();
+            haptic(10);
+        }
+
+        function clearRoomKeypad() {
+            keypadDigits = '';
+            keypadBedSuffix = '';
+            setRoomBedSuffix('');
+            updateKeypadDisplay();
+            haptic(10);
+        }
+
+        function setRoomBedSuffix(suffix) {
+            keypadBedSuffix = suffix;
+            ['', '-A', '-B'].forEach(opt => {
+                const btnId = opt === '' ? 'bed-opt-none' : `bed-opt-${opt.replace('-', '')}`;
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+                btn.className = opt === suffix
+                    ? 'tap py-2 rounded-xl border text-xs font-extrabold bg-teal-600 text-white border-teal-600'
+                    : 'tap py-2 rounded-xl border text-xs font-extrabold surface-subtle text-sub';
+            });
+            updateKeypadDisplay();
+            haptic(8);
+        }
+
+        function openAddModal() {
+            selectedNewTags = [];
+            keypadDigits = '';
+            keypadBedSuffix = '';
+            renderNewTagPills();
+            setRoomBedSuffix('');
+            updateKeypadDisplay();
+            document.getElementById('add-modal').classList.remove('hidden');
+            haptic(10);
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-modal').classList.add('hidden');
+        }
+
+        function renderNewTagPills() {
+            document.getElementById('add-tags-container').innerHTML = TAG_DEFS.map(t => {
+                const active = selectedNewTags.includes(t.id);
+                return `
+                <button type="button" onclick="toggleNewTag('${t.id}')" class="tap px-3 py-1.5 rounded-xl border text-xs font-extrabold ${
+                    active ? t.color : 'surface-subtle text-dim'
+                }">
+                    ${active ? '✓ ' : ''}${t.label}
+                </button>
+                `;
+            }).join('');
+        }
+
+        function toggleNewTag(tagId) {
+            if (selectedNewTags.includes(tagId)) {
+                selectedNewTags = selectedNewTags.filter(t => t !== tagId);
+            } else {
+                selectedNewTags.push(tagId);
+            }
+            renderNewTagPills();
+            haptic(8);
+        }
+
+        function handleAddRoom(e) {
+            e.preventDefault();
+            if (!keypadDigits) return;
+            const num = `${keypadDigits}${keypadBedSuffix}`;
+
+            state.rooms.push({
+                id: 'room-' + Date.now(),
+                number: num,
+                tags: [...selectedNewTags],
+                note: '',
+                timerEnd: null,
+                timerLabel: '',
+                timerAlerted: false,
+                tasks: createDefaultTasks()
+            });
+
+            saveState();
+            renderAll();
+            closeAddModal();
+            switchMainTab('board');
+            haptic(12);
+            showToast(`Room ${num} assigned`);
+        }
+
+        // Allow physical keyboard input when Add Room modal is open (great for desktop WOWs)
+        window.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('add-modal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            if (/^[0-9-]$/.test(e.key)) {
+                e.preventDefault();
+                pressRoomDigit(e.key);
+            } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                backspaceRoomDigit();
+            } else if (e.key === 'Enter' && keypadDigits) {
+                e.preventDefault();
+                handleAddRoom(new Event('submit'));
+            } else if (e.key === 'Escape') {
+                closeAddModal();
+            }
+        });
+
+        function openResetModal() {
+            document.getElementById('reset-modal').classList.remove('hidden');
+        }
+        function closeResetModal() {
+            document.getElementById('reset-modal').classList.add('hidden');
+        }
+
+        function resetTasksOnly() {
+            state.rooms.forEach(r => {
+                r.tasks = createDefaultTasks();
+                r.timerEnd = null;
+                r.timerLabel = '';
+                r.timerAlerted = false;
+                r.note = '';
+            });
+            saveState();
+            renderAll();
+            closeResetModal();
+            haptic(15);
+            showToast('Tasks reset — rooms kept');
+        }
+
+        function clearAllRooms() {
+            state.rooms = [];
+            saveState();
+            renderAll();
+            closeResetModal();
+            haptic(15);
+            showToast('Board cleared');
+        }
+
+        /**
+         * 9. UTILITIES
+         */
+        function haptic(pattern) {
+            try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').textContent = msg;
+            toast.classList.remove('opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.add('opacity-0'), 1800);
+        }
+
+        function escapeHTML(str) {
+            return String(str).replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        /**
+         * 10. INITIALIZATION
+         */
+        window.addEventListener('DOMContentLoaded', () => {
+            updateHudClock();
+            renderAll();
+            setInterval(checkTimersTick, 1000);
+            setInterval(renderAll, 30000);
+        });
+    </script>
+</body>
+</html>
